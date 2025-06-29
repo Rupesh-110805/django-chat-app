@@ -1,0 +1,90 @@
+{% extends 'chatapp/base.html' %}
+{% block body %}
+<div class="max-w-2xl mx-auto mt-10 secondary-bg p-6 rounded-lg shadow-lg">
+    <h2 class="text-2xl font-bold mb-6 text-center">Setup Google OAuth2</h2>
+    
+    <div class="bg-blue-100 dark:bg-blue-800 border border-blue-400 dark:border-blue-600 text-blue-700 dark:text-blue-200 px-4 py-3 rounded mb-6">
+        <p class="font-bold mb-2">📝 Before proceeding:</p>
+        <ol class="list-decimal list-inside space-y-1 text-sm">
+            <li>Go to <a href="https://console.cloud.google.com/" target="_blank" class="underline">Google Cloud Console</a></li>
+            <li>Create a new project or select an existing one</li>
+            <li>Enable the Google+ API or Google Identity service</li>
+            <li>Create OAuth 2.0 credentials (Web application)</li>
+            <li>Add redirect URI: <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">http://127.0.0.1:8000/accounts/google/login/callback/</code></li>
+            <li>Copy your Client ID and Client Secret</li>
+        </ol>
+        <p class="mt-2 text-sm">📖 See <code>GOOGLE_OAUTH_SETUP.md</code> for detailed instructions.</p>
+    </div>
+    
+    {% if messages %}
+        {% for message in messages %}
+            {% if message.tags == 'success' %}
+                <div class="bg-green-100 dark:bg-green-800 border border-green-400 dark:border-green-600 text-green-700 dark:text-green-200 px-4 py-3 rounded mb-4">
+                    {{ message }}
+                </div>
+            {% elif message.tags == 'error' %}
+                <div class="bg-red-100 dark:bg-red-800 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-200 px-4 py-3 rounded mb-4">
+                    {{ message }}
+                </div>
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+    
+    <form method="post" class="space-y-6">
+        {% csrf_token %}
+        
+        <div>
+            <label for="client_id" class="block text-secondary text-sm font-bold mb-2">
+                Google OAuth2 Client ID:
+            </label>
+            <input type="text" 
+                   id="client_id" 
+                   name="client_id" 
+                   required 
+                   placeholder="123456789-abcdefghijklmnop.apps.googleusercontent.com"
+                   class="w-full px-3 py-2 border border-custom rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-black dark:text-white font-mono text-sm">
+            <p class="text-xs text-secondary mt-1">Found in Google Cloud Console > APIs & Services > Credentials</p>
+        </div>
+        
+        <div>
+            <label for="client_secret" class="block text-secondary text-sm font-bold mb-2">
+                Google OAuth2 Client Secret:
+            </label>
+            <input type="password" 
+                   id="client_secret" 
+                   name="client_secret" 
+                   required 
+                   placeholder="GOCSPX-xxxxxxxxxxxxxxxxxxxxxxxx"
+                   class="w-full px-3 py-2 border border-custom rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-black dark:text-white font-mono text-sm">
+            <p class="text-xs text-secondary mt-1">Keep this secret secure and never share it publicly</p>
+        </div>
+        
+        <div class="bg-yellow-100 dark:bg-yellow-800 border border-yellow-400 dark:border-yellow-600 text-yellow-700 dark:text-yellow-200 px-4 py-3 rounded">
+            <p class="text-sm">
+                <strong>⚠️ Important:</strong> Make sure you've added the correct redirect URI in your Google OAuth2 settings:
+                <br><code class="bg-gray-200 dark:bg-gray-700 px-1 rounded mt-1 inline-block">http://127.0.0.1:8000/accounts/google/login/callback/</code>
+            </p>
+        </div>
+        
+        <div class="flex items-center justify-between pt-4">
+            <a href="{% url 'index' %}" 
+               class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors">
+                Cancel
+            </a>
+            <button type="submit" 
+                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors">
+                Setup Google OAuth2
+            </button>
+        </div>
+    </form>
+    
+    <div class="mt-6 pt-4 border-t border-custom">
+        <h3 class="font-bold mb-2">After Setup:</h3>
+        <ol class="list-decimal list-inside space-y-1 text-sm text-secondary">
+            <li>Go to the login page and test "Continue with Google"</li>
+            <li>You should be redirected to Google for authentication</li>
+            <li>After successful login, you'll be redirected back to the chat app</li>
+        </ol>
+    </div>
+</div>
+{% endblock %}

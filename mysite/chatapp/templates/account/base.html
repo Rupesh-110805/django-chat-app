@@ -1,0 +1,13 @@
+{% extends 'chatapp/base.html' %}
+
+{% block body %}
+<div class="max-w-md mx-auto mt-10 secondary-bg p-6 rounded-lg shadow-lg">
+    <div class="text-center mb-6">
+        <h1 class="text-2xl font-bold">Chat App</h1>
+        <p class="text-secondary text-sm">Connect. Chat. Share.</p>
+    </div>
+    
+    {% block content %}
+    {% endblock %}
+</div>
+{% endblock %}

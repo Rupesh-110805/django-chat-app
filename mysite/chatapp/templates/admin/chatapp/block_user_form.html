@@ -1,0 +1,206 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Block User: {{ user.username }}{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .block-form {
+        max-width: 600px;
+        margin: 20px auto;
+        padding: 20px;
+        background: #f9f9f9;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .form-group {
+        margin-bottom: 20px;
+    }
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+        color: #333;
+    }
+    .form-group select,
+    .form-group textarea,
+    .form-group input {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    .form-group textarea {
+        height: 100px;
+        resize: vertical;
+    }
+    .predefined-reasons {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 10px;
+        margin-bottom: 15px;
+    }
+    .reason-option {
+        padding: 10px;
+        background: white;
+        border: 2px solid #e0e0e0;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .reason-option:hover {
+        border-color: #007cba;
+        background: #f0f8ff;
+    }
+    .reason-option.selected {
+        border-color: #007cba;
+        background: #e6f3ff;
+    }
+    .current-block-info {
+        background: #fff3cd;
+        border: 1px solid #ffeeba;
+        border-radius: 6px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    .current-block-info h3 {
+        color: #856404;
+        margin-top: 0;
+    }
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        text-decoration: none;
+        display: inline-block;
+        margin-right: 10px;
+    }
+    .btn-primary {
+        background: #007cba;
+        color: white;
+    }
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+    }
+    .btn-danger {
+        background: #dc3545;
+        color: white;
+    }
+    .btn:hover {
+        opacity: 0.9;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="block-form">
+    <h1>Block User: {{ user.username }}</h1>
+    
+    <div style="margin-bottom: 20px;">
+        <p><strong>Username:</strong> {{ user.username }}</p>
+        <p><strong>Email:</strong> {{ user.email|default:"Not provided" }}</p>
+        <p><strong>Full Name:</strong> {{ user.get_full_name|default:"Not provided" }}</p>
+        <p><strong>Last Login:</strong> {{ user.last_login|default:"Never" }}</p>
+        <p><strong>Date Joined:</strong> {{ user.date_joined }}</p>
+    </div>
+
+    {% if current_block and is_currently_blocked %}
+    <div class="current-block-info">
+        <h3>⚠️ User is Currently Blocked</h3>
+        <p><strong>Reason:</strong> {{ current_block.reason }}</p>
+        <p><strong>Blocked by:</strong> {{ current_block.blocked_by.username }}</p>
+        <p><strong>Blocked on:</strong> {{ current_block.blocked_at }}</p>
+        {% if current_block.block_type == 'permanent' %}
+            <p><strong>Type:</strong> Permanent Block</p>
+        {% else %}
+            <p><strong>Blocked until:</strong> {{ current_block.blocked_until }}</p>
+        {% endif %}
+        
+        <form method="post" action="{% url 'admin:quick_unblock_user' user.id %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-secondary" onclick="return confirm('Are you sure you want to unblock this user?')">
+                Unblock User
+            </button>
+        </form>
+    </div>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label>Select Reason (click to select):</label>
+            <div class="predefined-reasons">
+                {% for reason in predefined_reasons %}
+                <div class="reason-option" onclick="selectReason('{{ reason|addslashes }}')">
+                    {{ reason }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="reason">Selected Reason:</label>
+            <input type="text" id="reason" name="reason" readonly style="background: #f5f5f5;">
+        </div>
+
+        <div class="form-group">
+            <label for="custom_reason">Or Enter Custom Reason:</label>
+            <textarea id="custom_reason" name="custom_reason" placeholder="Enter a custom reason for blocking this user..."></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="block_type">Block Duration:</label>
+            <select id="block_type" name="block_type" required>
+                <option value="">Select duration...</option>
+                <option value="1">1 Day</option>
+                <option value="3">3 Days</option>
+                <option value="7">1 Week</option>
+                <option value="30">1 Month</option>
+                <option value="90">3 Months</option>
+                <option value="permanent">Permanent</option>
+            </select>
+        </div>
+
+        <div style="margin-top: 30px;">
+            <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to block this user?')">
+                Block User
+            </button>
+            <a href="{% url 'admin:auth_user_changelist' %}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script>
+function selectReason(reason) {
+    // Remove selected class from all options
+    document.querySelectorAll('.reason-option').forEach(option => {
+        option.classList.remove('selected');
+    });
+    
+    // Add selected class to clicked option
+    event.target.classList.add('selected');
+    
+    // Set the reason input
+    document.getElementById('reason').value = reason;
+    
+    // Clear custom reason if predefined reason is selected
+    document.getElementById('custom_reason').value = '';
+}
+
+// Clear predefined reason selection when custom reason is typed
+document.getElementById('custom_reason').addEventListener('input', function() {
+    if (this.value.trim()) {
+        document.querySelectorAll('.reason-option').forEach(option => {
+            option.classList.remove('selected');
+        });
+        document.getElementById('reason').value = '';
+    }
+});
+</script>
+{% endblock %}

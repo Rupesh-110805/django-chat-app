@@ -1,0 +1,769 @@
+{% extends 'chatapp/base.html' %}
+{% block body %}
+<div class="flex h-screen bg-primary">
+    <!-- Main chat area -->
+    <div class="flex-1 flex flex-col">
+        <!-- Chat header -->
+        <div class="bg-secondary border-b border-custom p-4 flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold flex items-center">
+                    {{ chatroom.name }}
+                    {% if chatroom.room_type == 'private' %}
+                        <span class="ml-2 bg-purple-500 text-white text-xs px-2 py-1 rounded-full">Private</span>
+                    {% else %}
+                        <span class="ml-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">Public</span>
+                    {% endif %}
+                </h1>
+                <p class="text-sm text-secondary">
+                    <span id="online-count">{{ online_users.count }}</span> user{{ online_users.count|pluralize }} online
+                    {% if chatroom.room_type == 'private' %}
+                        • Owner: {{ chatroom.owner.username }}
+                        {% if chatroom.owner == request.user %}
+                            • Access Code: 
+                            <span class="font-mono bg-gray-200 dark:bg-gray-700 px-1 rounded">{{ chatroom.access_code }}</span>
+                        {% endif %}
+                    {% endif %}
+                </p>
+            </div>
+            <button id="toggle-sidebar" class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" title="Toggle Online Users">
+                <svg id="sidebar-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Messages container -->
+        <div class="flex-1 overflow-auto border-custom border rounded-lg m-4 secondary-bg" id="message-container">
+            <div id="chat-messages" class="p-4">
+                {% for message in chat_messages %}
+                <div class="flex mb-4 {% if message.user == request.user %}justify-end{% else %}justify-start{% endif %}">
+                    <div class="message shadow-lg p-3 rounded-lg max-w-xs lg:max-w-md {% if message.user == request.user %}bg-blue-500 text-white ml-auto{% else %}bg-white dark:bg-gray-700 mr-auto{% endif %}">
+                        {% if message.user != request.user %}
+                        <div class="text-sm text-secondary flex items-center mb-1">
+                            <span class="online-indicator mr-2" data-username="{{ message.user.username }}"></span>
+                            {{ message.user.username }}
+                        </div>
+                        {% endif %}
+                        <div class="message-content">
+                            {% if message.message_type == 'text' %}
+                                {{ message.message_content }}
+                            {% elif message.message_type == 'image' %}
+                                <div class="mb-2">{{ message.message_content }}</div>
+                                <img src="{{ message.file.url }}" alt="{{ message.file_name }}" class="max-w-xs max-h-64 rounded cursor-pointer hover:opacity-90 transition-opacity" onclick="openImageModal('{{ message.file.url }}', '{{ message.file_name }}')">
+                                <div class="text-xs {% if message.user == request.user %}text-blue-100{% else %}text-secondary{% endif %} mt-1">{{ message.file_name }} ({{ message.get_file_size_display }})</div>
+                            {% elif message.message_type == 'file' %}
+                                <div class="mb-2">{{ message.message_content }}</div>
+                                <a href="{{ message.file.url }}" download="{{ message.file_name }}" class="inline-flex items-center px-3 py-2 {% if message.user == request.user %}bg-blue-600 hover:bg-blue-700 text-white{% else %}bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-600{% endif %} rounded transition-colors">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                    {{ message.file_name }}
+                                </a>
+                                <div class="text-xs {% if message.user == request.user %}text-blue-100{% else %}text-secondary{% endif %} mt-1">{{ message.get_file_size_display }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Message reactions -->
+                        <div class="message-reactions mt-2 flex flex-wrap items-center gap-1" data-message-id="{{ message.id }}">
+                            <!-- Existing reactions -->
+                            {% for emoji, reaction_data in message.reaction_data.items %}
+                            <button class="reaction-btn inline-flex items-center text-xs px-2 py-1 rounded-full border transition-colors {% if reaction_data.user_reacted %}bg-blue-100 border-blue-300 text-blue-800 dark:bg-blue-900 dark:border-blue-600 dark:text-blue-200{% else %}bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300{% endif %} hover:bg-blue-50 dark:hover:bg-blue-800" 
+                                    data-emoji="{{ emoji }}" 
+                                    data-message-id="{{ message.id }}"
+                                    title="{% for user in reaction_data.users %}{{ user }}{% if not forloop.last %}, {% endif %}{% endfor %}">
+                                <span class="mr-1">{{ emoji }}</span>
+                                <span class="reaction-count">{{ reaction_data.count }}</span>
+                            </button>
+                            {% endfor %}
+                            
+                            <!-- Add reaction button -->
+                            <button class="add-reaction-btn inline-flex items-center text-xs px-2 py-1 rounded-full border border-gray-300 bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600 transition-colors" 
+                                    data-message-id="{{ message.id }}" 
+                                    title="Add reaction">
+                                😊
+                            </button>
+                        </div>
+                        
+                        <div class="text-xs {% if message.user == request.user %}text-blue-100{% else %}text-secondary{% endif %} mt-1">
+                            {{ message.date|date:"H:i" }}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Message input form -->
+        <div class="form-container secondary-bg border-t border-custom p-4">
+            <div class="flex items-center space-x-3">
+                <input class="rounded-md px-3 py-2 flex-1 border border-custom bg-white dark:bg-gray-700 text-black dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent" id="message-input" type="text" placeholder="Type a message...">
+                
+                <!-- File upload button -->
+                <label for="file-input" class="cursor-pointer bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-md flex items-center transition-colors">
+                    <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+                    </svg>
+                    <span class="hidden sm:inline">File</span>
+                </label>
+                <input type="file" id="file-input" class="hidden" accept="*/*">
+                
+                <button class="text-white bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-md transition-colors" id="send-button">Send</button>
+            </div>
+            
+            <!-- File preview area -->
+            <div id="file-preview" class="mt-2 hidden">
+                <div class="bg-gray-100 dark:bg-gray-600 p-2 rounded flex items-center justify-between">
+                    <div class="flex items-center">
+                        <svg class="w-4 h-4 mr-2 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <span id="file-name" class="text-sm text-gray-700 dark:text-gray-200"></span>
+                        <span id="file-size" class="text-xs text-gray-500 dark:text-gray-400 ml-2"></span>
+                    </div>
+                    <button id="remove-file" class="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" title="Remove file">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Online users sidebar -->
+    <div id="online-sidebar" class="w-64 bg-secondary border-l border-custom flex flex-col transition-all duration-300 ease-in-out overflow-hidden">
+        <div class="p-4 border-b border-custom flex justify-between items-center min-w-64">
+            <h3 class="font-semibold text-lg whitespace-nowrap">Online Users</h3>
+            <button id="close-sidebar" class="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex-shrink-0" title="Close">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
+            </button>
+        </div>
+        <div class="flex-1 overflow-auto p-4 min-w-64">
+            <div id="online-users-list">
+                {% for presence in online_users %}
+                <div class="flex items-center mb-3 online-user" data-username="{{ presence.user.username }}">
+                    <div class="w-2 h-2 bg-green-500 rounded-full mr-3 flex-shrink-0"></div>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-medium truncate">
+                            {{ presence.user.username }}
+                            {% if presence.user == request.user %}
+                                <span class="text-xs text-secondary">(You)</span>
+                            {% endif %}
+                        </div>
+                        <div class="text-xs text-secondary truncate">Active {{ presence.last_seen|date:"H:i" }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Image modal -->
+<div id="image-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center hidden z-50" onclick="closeImageModal()">
+    <div class="max-w-4xl max-h-full p-4">
+        <img id="modal-image" src="" alt="" class="max-w-full max-h-full rounded">
+        <div id="modal-caption" class="text-white text-center mt-2"></div>
+        <button onclick="closeImageModal()" class="absolute top-4 right-4 text-white hover:text-gray-300 text-2xl">&times;</button>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    const chatRoomSlug = '{{ chatroom.slug }}';
+    const username = '{{ request.user.username }}';
+    let lastMessageId = {% if chat_messages %}{{ chat_messages.last.id }}{% else %}0{% endif %};
+    let isPolling = true;
+    let selectedFile = null;
+    let onlineUsers = new Set();
+    let sidebarOpen = true;
+    
+    console.log('Room slug:', chatRoomSlug);
+    console.log('Username:', username);
+    console.log('Last message ID:', lastMessageId);
+    
+    // Initialize online users from template
+    {% for presence in online_users %}
+    onlineUsers.add('{{ presence.user.username }}');
+    {% endfor %}
+    
+    // Sidebar toggle functionality
+    function toggleSidebar() {
+        const sidebar = document.getElementById('online-sidebar');
+        const toggleBtn = document.getElementById('toggle-sidebar');
+        const sidebarIcon = document.getElementById('sidebar-icon');
+        
+        if (sidebarOpen) {
+            // Close sidebar
+            sidebar.style.transform = 'translateX(100%)';
+            sidebar.style.width = '0';
+            sidebarOpen = false;
+            
+            // Update icon to show "open" state
+            sidebarIcon.innerHTML = `
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+            `;
+            toggleBtn.title = 'Show Online Users';
+        } else {
+            // Open sidebar
+            sidebar.style.transform = 'translateX(0)';
+            sidebar.style.width = '256px'; // w-64 = 16rem = 256px
+            sidebarOpen = true;
+            
+            // Update icon to show "close" state
+            sidebarIcon.innerHTML = `
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+            `;
+            toggleBtn.title = 'Hide Online Users';
+        }
+    }
+    
+    // Event listeners for sidebar toggle
+    document.getElementById('toggle-sidebar').addEventListener('click', toggleSidebar);
+    document.getElementById('close-sidebar').addEventListener('click', toggleSidebar);
+    
+    // Function to get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    const csrftoken = getCookie('csrftoken');
+    
+    // Update online status indicators
+    function updateOnlineIndicators() {
+        document.querySelectorAll('.online-indicator').forEach(indicator => {
+            const username = indicator.getAttribute('data-username');
+            if (onlineUsers.has(username)) {
+                indicator.innerHTML = '<div class="w-2 h-2 bg-green-500 rounded-full"></div>';
+                indicator.title = 'Online';
+            } else {
+                indicator.innerHTML = '<div class="w-2 h-2 bg-gray-400 rounded-full"></div>';
+                indicator.title = 'Offline';
+            }
+        });
+    }
+    
+    // Update presence
+    function updatePresence() {
+        $.ajax({
+            url: '{% url "update_presence" chatroom.slug %}',
+            type: 'POST',
+            data: {
+                'csrfmiddlewaretoken': csrftoken
+            },
+            success: function(response) {
+                if (response.success && response.online_users) {
+                    // Update online users list
+                    const onlineUsersList = document.getElementById('online-users-list');
+                    onlineUsersList.innerHTML = '';
+                    
+                    onlineUsers.clear();
+                    let onlineCount = 0;
+                    
+                    response.online_users.forEach(user => {
+                        onlineUsers.add(user.username);
+                        onlineCount++;
+                        
+                        const userElement = document.createElement('div');
+                        userElement.className = 'flex items-center mb-3 online-user';
+                        userElement.setAttribute('data-username', user.username);
+                        
+                        userElement.innerHTML = `
+                            <div class="w-2 h-2 bg-green-500 rounded-full mr-3 flex-shrink-0"></div>
+                            <div class="flex-1 min-w-0">
+                                <div class="font-medium truncate">
+                                    ${user.username}
+                                    ${user.is_current_user ? '<span class="text-xs text-secondary">(You)</span>' : ''}
+                                </div>
+                                <div class="text-xs text-secondary truncate">Active ${user.last_seen}</div>
+                            </div>
+                        `;
+                        
+                        onlineUsersList.appendChild(userElement);
+                    });
+                    
+                    // Update online count
+                    document.getElementById('online-count').textContent = onlineCount;
+                    
+                    // Update online indicators in messages
+                    updateOnlineIndicators();
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error updating presence:', error);
+            }
+        });
+    }
+    
+    // File upload handling
+    document.getElementById('file-input').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            selectedFile = file;
+            showFilePreview(file);
+        }
+    });
+    
+    function showFilePreview(file) {
+        const preview = document.getElementById('file-preview');
+        const fileName = document.getElementById('file-name');
+        const fileSize = document.getElementById('file-size');
+        
+        fileName.textContent = file.name;
+        fileSize.textContent = formatFileSize(file.size);
+        preview.classList.remove('hidden');
+    }
+    
+    function hideFilePreview() {
+        const preview = document.getElementById('file-preview');
+        preview.classList.add('hidden');
+        selectedFile = null;
+        document.getElementById('file-input').value = '';
+    }
+    
+    document.getElementById('remove-file').addEventListener('click', hideFilePreview);
+    
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+    
+    // Function to send message
+    function sendMessage() {
+        const messageInput = document.getElementById('message-input');
+        const message = messageInput.value.trim();
+        
+        if (!message && !selectedFile) {
+            alert('Please enter a message or select a file');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', csrftoken);
+        
+        if (message) {
+            formData.append('message', message);
+        }
+        
+        if (selectedFile) {
+            formData.append('file', selectedFile);
+        }
+        
+        $.ajax({
+            url: '{% url "send_message" chatroom.slug %}',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.success) {
+                    messageInput.value = '';
+                    hideFilePreview();
+                    console.log('Message sent successfully');
+                    // Poll immediately after sending
+                    pollMessages();
+                } else {
+                    alert('Error sending message: ' + response.error);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error sending message:', error);
+                alert('Error sending message. Please try again.');
+            }
+        });
+    }
+    
+    // Function to poll for new messages
+    function pollMessages() {
+        if (!isPolling) return;
+        
+        $.ajax({
+            url: '{% url "get_messages" chatroom.slug %}',
+            type: 'GET',
+            data: {
+                'last_message_id': lastMessageId
+            },
+            success: function(response) {
+                if (response.messages && response.messages.length > 0) {
+                    response.messages.forEach(function(msg) {
+                        let messageHtml = '';
+                        const isCurrentUser = msg.username === username;
+                        const alignmentClass = isCurrentUser ? 'justify-end' : 'justify-start';
+                        const bubbleClass = isCurrentUser ? 'bg-blue-500 text-white ml-auto' : 'bg-white dark:bg-gray-700 mr-auto';
+                        const textColorClass = isCurrentUser ? 'text-blue-100' : 'text-secondary';
+                        
+                        if (msg.message_type === 'text') {
+                            messageHtml = `
+                                <div class="flex mb-4 ${alignmentClass}">
+                                    <div class="message shadow-lg p-3 rounded-lg max-w-xs lg:max-w-md ${bubbleClass}">
+                                        ${!isCurrentUser ? `
+                                        <div class="text-sm text-secondary flex items-center mb-1">
+                                            <span class="online-indicator mr-2" data-username="${msg.username}"></span>
+                                            ${msg.username}
+                                        </div>
+                                        ` : ''}
+                                        <div class="message-content">${msg.message_content}</div>
+                                        ${createReactionsHtml(msg.id, msg.reactions || {})}
+                                        <div class="text-xs ${textColorClass} mt-1">${msg.time}</div>
+                                    </div>
+                                </div>
+                            `;
+                        } else if (msg.message_type === 'image') {
+                            const downloadClass = isCurrentUser ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-600';
+                            messageHtml = `
+                                <div class="flex mb-4 ${alignmentClass}">
+                                    <div class="message shadow-lg p-3 rounded-lg max-w-xs lg:max-w-md ${bubbleClass}">
+                                        ${!isCurrentUser ? `
+                                        <div class="text-sm text-secondary flex items-center mb-1">
+                                            <span class="online-indicator mr-2" data-username="${msg.username}"></span>
+                                            ${msg.username}
+                                        </div>
+                                        ` : ''}
+                                        <div class="message-content">
+                                            <div class="mb-2">${msg.message_content}</div>
+                                            <img src="${msg.file_url}" alt="${msg.file_name}" class="max-w-xs max-h-64 rounded cursor-pointer hover:opacity-90 transition-opacity" onclick="openImageModal('${msg.file_url}', '${msg.file_name}')">
+                                            <div class="text-xs ${textColorClass} mt-1">${msg.file_name} (${msg.file_size})</div>
+                                        </div>
+                                        ${createReactionsHtml(msg.id, msg.reactions || {})}
+                                        <div class="text-xs ${textColorClass} mt-1">${msg.time}</div>
+                                    </div>
+                                </div>
+                            `;
+                        } else if (msg.message_type === 'file') {
+                            const downloadClass = isCurrentUser ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-600';
+                            messageHtml = `
+                                <div class="flex mb-4 ${alignmentClass}">
+                                    <div class="message shadow-lg p-3 rounded-lg max-w-xs lg:max-w-md ${bubbleClass}">
+                                        ${!isCurrentUser ? `
+                                        <div class="text-sm text-secondary flex items-center mb-1">
+                                            <span class="online-indicator mr-2" data-username="${msg.username}"></span>
+                                            ${msg.username}
+                                        </div>
+                                        ` : ''}
+                                        <div class="message-content">
+                                            <div class="mb-2">${msg.message_content}</div>
+                                            <a href="${msg.file_url}" download="${msg.file_name}" class="inline-flex items-center px-3 py-2 ${downloadClass} rounded transition-colors">
+                                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                                </svg>
+                                                ${msg.file_name}
+                                            </a>
+                                            <div class="text-xs ${textColorClass} mt-1">${msg.file_size}</div>
+                                        </div>
+                                        ${createReactionsHtml(msg.id, msg.reactions || {})}
+                                        <div class="text-xs ${textColorClass} mt-1">${msg.time}</div>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                        
+                        document.getElementById('chat-messages').innerHTML += messageHtml;
+                        lastMessageId = Math.max(lastMessageId, msg.id);
+                    });
+                    
+                    // Update online indicators for new messages
+                    updateOnlineIndicators();
+                    scroll();
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error polling messages:', error);
+            }
+        });
+    }
+    
+    // Image modal functions
+    function openImageModal(imageUrl, caption) {
+        const modal = document.getElementById('image-modal');
+        const modalImage = document.getElementById('modal-image');
+        const modalCaption = document.getElementById('modal-caption');
+        
+        modalImage.src = imageUrl;
+        modalCaption.textContent = caption;
+        modal.classList.remove('hidden');
+    }
+    
+    function closeImageModal() {
+        const modal = document.getElementById('image-modal');
+        modal.classList.add('hidden');
+    }
+    
+    // Send message button click
+    document.getElementById('send-button').onclick = function(e) {
+        e.preventDefault();
+        sendMessage();
+    };
+    
+    // Send message on Enter key
+    document.getElementById('message-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+    
+    // Scroll to bottom function
+    function scroll() {
+        const container = document.getElementById('message-container');
+        container.scrollTop = container.scrollHeight;
+    }
+    
+    // Handle page visibility changes
+    document.addEventListener('visibilitychange', function() {
+        isPolling = !document.hidden;
+        if (document.hidden) {
+            // User switched away from the tab
+            $.ajax({
+                url: '{% url "leave_room" chatroom.slug %}',
+                type: 'POST',
+                data: { 'csrfmiddlewaretoken': csrftoken }
+            });
+        } else {
+            // User came back to the tab
+            updatePresence();
+        }
+    });
+    
+    // Handle page unload
+    window.addEventListener('beforeunload', function() {
+        $.ajax({
+            url: '{% url "leave_room" chatroom.slug %}',
+            type: 'POST',
+            data: { 'csrfmiddlewaretoken': csrftoken },
+            async: false
+        });
+    });
+    
+    // Start polling for messages every 2 seconds
+    setInterval(pollMessages, 2000);
+    
+    // Update presence every 30 seconds
+    setInterval(updatePresence, 30000);
+    
+    // Handle window resize to auto-hide sidebar on small screens
+    function handleResize() {
+        const sidebar = document.getElementById('online-sidebar');
+        if (window.innerWidth < 768) { // md breakpoint
+            if (sidebarOpen) {
+                toggleSidebar();
+            }
+        }
+    }
+    
+    window.addEventListener('resize', handleResize);
+    
+    // Reaction functionality
+    const emojiList = ['👍', '👎', '❤️', '😂', '😮', '😢', '😡', '🎉', '🔥', '💯'];
+    
+    function createReactionsHtml(messageId, reactions) {
+        let reactionsHtml = '<div class="message-reactions mt-2 flex flex-wrap items-center gap-1" data-message-id="' + messageId + '">';
+        
+        Object.keys(reactions).forEach(emoji => {
+            const reactionData = reactions[emoji];
+            const isUserReacted = reactionData.user_reacted;
+            const userReactedClass = isUserReacted ? 
+                'bg-blue-100 border-blue-300 text-blue-800 dark:bg-blue-900 dark:border-blue-600 dark:text-blue-200' : 
+                'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300';
+            
+            reactionsHtml += `
+                <button class="reaction-btn inline-flex items-center text-xs px-2 py-1 rounded-full border transition-colors ${userReactedClass} hover:bg-blue-50 dark:hover:bg-blue-800" 
+                        data-emoji="${emoji}" 
+                        data-message-id="${messageId}"
+                        title="${reactionData.users.join(', ')}">
+                    <span class="mr-1">${emoji}</span>
+                    <span class="reaction-count">${reactionData.count}</span>
+                </button>
+            `;
+        });
+        
+        reactionsHtml += `
+            <button class="add-reaction-btn inline-flex items-center text-xs px-2 py-1 rounded-full border border-gray-300 bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600 transition-colors" 
+                    data-message-id="${messageId}" 
+                    title="Add reaction">
+                😊
+            </button>
+        </div>`;
+        
+        return reactionsHtml;
+    }
+    
+    function toggleReaction(messageId, emoji) {
+        $.ajax({
+            url: `{% url "toggle_reaction" chatroom.slug 0 %}`.replace('0', messageId),
+            type: 'POST',
+            data: {
+                'csrfmiddlewaretoken': csrftoken,
+                'emoji': emoji
+            },
+            success: function(response) {
+                if (response.success) {
+                    updateMessageReactions(messageId, response.reaction_counts);
+                } else {
+                    console.error('Error toggling reaction:', response.error);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error toggling reaction:', error);
+            }
+        });
+    }
+    
+    function updateMessageReactions(messageId, reactionCounts) {
+        const reactionsContainer = document.querySelector(`[data-message-id="${messageId}"].message-reactions`);
+        if (!reactionsContainer) return;
+        
+        // Clear existing reactions except the add button
+        const addButton = reactionsContainer.querySelector('.add-reaction-btn');
+        reactionsContainer.innerHTML = '';
+        
+        // Add reaction buttons
+        Object.keys(reactionCounts).forEach(emoji => {
+            const reactionData = reactionCounts[emoji];
+            const isUserReacted = reactionData.user_reacted;
+            const userReactedClass = isUserReacted ? 
+                'bg-blue-100 border-blue-300 text-blue-800 dark:bg-blue-900 dark:border-blue-600 dark:text-blue-200' : 
+                'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300';
+            
+            const reactionBtn = document.createElement('button');
+            reactionBtn.className = `reaction-btn inline-flex items-center text-xs px-2 py-1 rounded-full border transition-colors ${userReactedClass} hover:bg-blue-50 dark:hover:bg-blue-800`;
+            reactionBtn.setAttribute('data-emoji', emoji);
+            reactionBtn.setAttribute('data-message-id', messageId);
+            reactionBtn.title = reactionData.users.join(', ');
+            reactionBtn.innerHTML = `<span class="mr-1">${emoji}</span><span class="reaction-count">${reactionData.count}</span>`;
+            
+            reactionBtn.addEventListener('click', function() {
+                toggleReaction(messageId, emoji);
+            });
+            
+            reactionsContainer.appendChild(reactionBtn);
+        });
+        
+        // Re-add the add reaction button
+        if (addButton) {
+            reactionsContainer.appendChild(addButton);
+        }
+    }
+    
+    function showEmojiPicker(messageId, button) {
+        // Remove any existing emoji picker
+        const existingPicker = document.querySelector('.emoji-picker');
+        if (existingPicker) {
+            existingPicker.remove();
+        }
+        
+        const picker = document.createElement('div');
+        picker.className = 'emoji-picker fixed z-50 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-xl p-3 grid grid-cols-5 gap-2 min-w-max';
+        
+        // Get button position for proper placement
+        const buttonRect = button.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        const viewportWidth = window.innerWidth;
+        
+        // Calculate picker dimensions (approximate)
+        const pickerWidth = 200; // Approximate width
+        const pickerHeight = 120; // Approximate height
+        
+        // Position the picker above or below the button based on available space
+        let top, left;
+        
+        if (buttonRect.top > pickerHeight + 10) {
+            // Place above the button
+            top = buttonRect.top - pickerHeight - 5;
+        } else {
+            // Place below the button
+            top = buttonRect.bottom + 5;
+        }
+        
+        // Ensure picker doesn't go off-screen horizontally
+        left = Math.max(10, Math.min(buttonRect.left, viewportWidth - pickerWidth - 10));
+        
+        picker.style.top = `${top}px`;
+        picker.style.left = `${left}px`;
+        
+        // Add a subtle animation
+        picker.style.opacity = '0';
+        picker.style.transform = 'scale(0.95)';
+        picker.style.transition = 'opacity 0.15s ease-out, transform 0.15s ease-out';
+        
+        emojiList.forEach(emoji => {
+            const emojiBtn = document.createElement('button');
+            emojiBtn.className = 'p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors text-xl hover:scale-110 transform duration-150';
+            emojiBtn.textContent = emoji;
+            emojiBtn.title = `React with ${emoji}`;
+            emojiBtn.onclick = function(e) {
+                e.stopPropagation();
+                toggleReaction(messageId, emoji);
+                picker.remove();
+            };
+            picker.appendChild(emojiBtn);
+        });
+        
+        // Add to document body for proper positioning
+        document.body.appendChild(picker);
+        
+        // Trigger animation
+        requestAnimationFrame(() => {
+            picker.style.opacity = '1';
+            picker.style.transform = 'scale(1)';
+        });
+        
+        // Close picker when clicking outside
+        function closePicker(e) {
+            if (!picker.contains(e.target) && e.target !== button) {
+                picker.style.opacity = '0';
+                picker.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    if (picker.parentNode) {
+                        picker.remove();
+                    }
+                }, 150);
+                document.removeEventListener('click', closePicker);
+                window.removeEventListener('scroll', closePicker);
+                window.removeEventListener('resize', closePicker);
+            }
+        }
+        
+        // Add event listeners to close picker
+        setTimeout(() => {
+            document.addEventListener('click', closePicker);
+            window.addEventListener('scroll', closePicker);
+            window.addEventListener('resize', closePicker);
+        }, 100);
+    }
+    
+    // Event delegation for reaction buttons
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.reaction-btn')) {
+            const btn = e.target.closest('.reaction-btn');
+            const messageId = btn.getAttribute('data-message-id');
+            const emoji = btn.getAttribute('data-emoji');
+            toggleReaction(messageId, emoji);
+        } else if (e.target.closest('.add-reaction-btn')) {
+            const btn = e.target.closest('.add-reaction-btn');
+            const messageId = btn.getAttribute('data-message-id');
+            showEmojiPicker(messageId, btn);
+        }
+    });
+    
+    // Initial setup
+    updateOnlineIndicators();
+    scroll();
+    handleResize(); // Check initial screen size
+</script>
+{% endblock %}

@@ -1,0 +1,97 @@
+[
+{
+  "model": "chatapp.chatroom",
+  "pk": 1,
+  "fields": {
+    "name": "Friends",
+    "slug": "friends",
+    "room_type": "public",
+    "access_code": null,
+    "owner": 1,
+    "created_at": "2025-06-28T17:11:36.255Z"
+  }
+},
+{
+  "model": "chatapp.chatroom",
+  "pk": 2,
+  "fields": {
+    "name": "Test Room",
+    "slug": "test-room",
+    "room_type": "public",
+    "access_code": null,
+    "owner": 1,
+    "created_at": "2025-06-28T17:11:36.255Z"
+  }
+},
+{
+  "model": "chatapp.chatroom",
+  "pk": 3,
+  "fields": {
+    "name": "MyLand",
+    "slug": "myland",
+    "room_type": "private",
+    "access_code": "O3DL4PYB",
+    "owner": 1,
+    "created_at": "2025-06-28T17:13:53.692Z"
+  }
+},
+{
+  "model": "chatapp.privateroommembership",
+  "pk": 1,
+  "fields": {
+    "user": 1,
+    "room": 3,
+    "joined_at": "2025-06-28T17:13:53.700Z"
+  }
+},
+{
+  "model": "chatapp.userpresence",
+  "pk": 1,
+  "fields": {
+    "user": 1,
+    "room": 1,
+    "last_seen": "2025-06-28T17:11:59.875Z",
+    "is_online": true
+  }
+},
+{
+  "model": "chatapp.userpresence",
+  "pk": 2,
+  "fields": {
+    "user": 1,
+    "room": 2,
+    "last_seen": "2025-06-28T16:28:59.871Z",
+    "is_online": true
+  }
+},
+{
+  "model": "chatapp.userpresence",
+  "pk": 3,
+  "fields": {
+    "user": 1,
+    "room": 3,
+    "last_seen": "2025-06-28T17:15:02.175Z",
+    "is_online": true
+  }
+},
+{
+  "model": "chatapp.chatmessage",
+  "pk": 1,
+  "fields": {
+    "user": 1,
+    "room": 1,
+    "message_content": "Hi",
+    "message_type": "text",
+    "file": "",
+    "file_name": "",
+    "file_size": 0,
+    "date": "2025-06-28T16:15:49.915Z"
+  }
+},
+{
+  "model": "chatapp.chatmessage",
+  "pk": 2,
+  "fields": {
+    "user": 1,
+    "room": 2,
+    "message_content": 

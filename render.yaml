@@ -1,0 +1,31 @@
+databases:
+  - name: chatapp-db
+    databaseName: chatapp_db
+    user: chatapp_user
+
+services:
+  - type: web
+    name: django-chat-app
+    env: python
+    plan: free
+    buildCommand: "./render_deploy.sh"
+    startCommand: "cd mysite && gunicorn mysite.wsgi:application"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: DEBUG
+        value: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: chatapp-db
+          property: connectionString
+      - key: GOOGLE_OAUTH2_CLIENT_ID
+        sync: false
+      - key: GOOGLE_OAUTH2_CLIENT_SECRET
+        sync: false
+      - key: ALLOWED_HOSTS
+        value: .onrender.com
+      - key: DJANGO_SETTINGS_MODULE
+        value: mysite.settings

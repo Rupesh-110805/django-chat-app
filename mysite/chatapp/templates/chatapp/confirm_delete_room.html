@@ -1,0 +1,39 @@
+{% extends 'chatapp/base.html' %}
+{% block body %}
+<div class="max-w-md mx-auto mt-10 secondary-bg p-6 rounded-lg shadow-lg">
+    <h2 class="text-2xl font-bold mb-6 text-center text-red-600 dark:text-red-400">Delete Private Room</h2>
+    
+    <div class="bg-red-100 dark:bg-red-800 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-200 px-4 py-3 rounded mb-6">
+        <strong>Warning:</strong> This action cannot be undone. All messages and room data will be permanently deleted.
+    </div>
+    
+    <div class="mb-6">
+        <h3 class="text-lg font-semibold mb-2">Room Details:</h3>
+        <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
+            <p class="mb-2"><strong>Name:</strong> {{ room.name }}</p>
+            <p class="mb-2"><strong>Access Code:</strong> {{ room.access_code }}</p>
+            <p class="mb-2"><strong>Created:</strong> {{ room.created_at|date:"M d, Y H:i" }}</p>
+        </div>
+    </div>
+    
+    <form method="post">
+        {% csrf_token %}
+        <div class="flex items-center justify-between space-x-4">
+            <button type="submit" 
+                    class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors">
+                Yes, Delete Room
+            </button>
+            <a href="{% url 'private_rooms' %}" 
+               class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors">
+                Cancel
+            </a>
+        </div>
+    </form>
+    
+    <div class="mt-4 text-center">
+        <p class="text-xs text-gray-500 dark:text-gray-400">
+            This will delete the room, all messages, and remove all members.
+        </p>
+    </div>
+</div>
+{% endblock %}

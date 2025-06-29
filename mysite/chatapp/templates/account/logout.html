@@ -1,0 +1,38 @@
+{% extends 'chatapp/base.html' %}
+
+{% block body %}
+<div class="max-w-md mx-auto mt-10 secondary-bg p-6 rounded-lg shadow-lg">
+    <h2 class="text-2xl font-bold mb-6 text-center">Sign Out</h2>
+    
+    <div class="bg-blue-100 dark:bg-blue-800 border border-blue-400 dark:border-blue-600 text-blue-700 dark:text-blue-200 px-4 py-3 rounded mb-6">
+        <p class="text-center">
+            Are you sure you want to sign out?
+        </p>
+    </div>
+    
+    <form method="post" action="{% url 'account_logout' %}">
+        {% csrf_token %}
+        
+        {% if redirect_field_value %}
+            <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}" />
+        {% endif %}
+        
+        <div class="flex items-center justify-between space-x-4">
+            <a href="{% url 'index' %}" 
+               class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors">
+                Cancel
+            </a>
+            <button type="submit" 
+                    class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors">
+                Sign Out
+            </button>
+        </div>
+    </form>
+    
+    <div class="mt-6 text-center">
+        <p class="text-sm text-secondary">
+            You can always sign back in anytime to continue chatting.
+        </p>
+    </div>
+</div>
+{% endblock %}

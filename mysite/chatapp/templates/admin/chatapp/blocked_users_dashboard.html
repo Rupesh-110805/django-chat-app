@@ -1,0 +1,262 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Blocked Users Dashboard{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .dashboard-container {
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 20px;
+    }
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    .stat-card {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+    .stat-number {
+        font-size: 2em;
+        font-weight: bold;
+        color: #007cba;
+        margin-bottom: 5px;
+    }
+    .stat-label {
+        color: #666;
+        font-size: 0.9em;
+    }
+    .blocks-section {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 30px;
+    }
+    .blocks-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+    }
+    .blocks-table th,
+    .blocks-table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #eee;
+    }
+    .blocks-table th {
+        background: #f8f9fa;
+        font-weight: bold;
+        color: #333;
+    }
+    .blocks-table tr:hover {
+        background: #f8f9fa;
+    }
+    .status-badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.8em;
+        font-weight: bold;
+    }
+    .status-permanent {
+        background: #dc3545;
+        color: white;
+    }
+    .status-temporary {
+        background: #ffc107;
+        color: #212529;
+    }
+    .status-expired {
+        background: #6c757d;
+        color: white;
+    }
+    .btn {
+        padding: 6px 12px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.8em;
+        text-decoration: none;
+        display: inline-block;
+        margin-right: 5px;
+    }
+    .btn-sm {
+        padding: 4px 8px;
+        font-size: 0.75em;
+    }
+    .btn-primary {
+        background: #007cba;
+        color: white;
+    }
+    .btn-danger {
+        background: #dc3545;
+        color: white;
+    }
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+    }
+    .btn:hover {
+        opacity: 0.9;
+    }
+    .no-data {
+        text-align: center;
+        color: #666;
+        font-style: italic;
+        padding: 40px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <h1>Blocked Users Dashboard</h1>
+    
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-number">{{ total_active_blocks }}</div>
+            <div class="stat-label">Currently Blocked Users</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ active_blocks|length }}</div>
+            <div class="stat-label">Active Blocks</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ expired_blocks|length }}</div>
+            <div class="stat-label">Recent Expired Blocks</div>
+        </div>
+    </div>
+
+    <div class="blocks-section">
+        <h2>Active Blocks</h2>
+        {% if active_blocks %}
+            <table class="blocks-table">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Email</th>
+                        <th>Reason</th>
+                        <th>Blocked By</th>
+                        <th>Status</th>
+                        <th>Blocked Until</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for block in active_blocks %}
+                    <tr>
+                        <td>
+                            <strong>{{ block.user.username }}</strong><br>
+                            <small>{{ block.user.get_full_name|default:"No name" }}</small>
+                        </td>
+                        <td>{{ block.user.email|default:"No email" }}</td>
+                        <td>{{ block.reason|truncatechars:50 }}</td>
+                        <td>{{ block.blocked_by.username }}</td>
+                        <td>
+                            {% if block.block_type == 'permanent' %}
+                                <span class="status-badge status-permanent">Permanent</span>
+                            {% else %}
+                                <span class="status-badge status-temporary">Temporary</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if block.block_type == 'permanent' %}
+                                <em>Permanent</em>
+                            {% else %}
+                                {{ block.blocked_until|date:"M d, Y H:i" }}
+                            {% endif %}
+                        </td>
+                        <td>{{ block.blocked_at|date:"M d, Y H:i" }}</td>
+                        <td>
+                            <a href="{% url 'admin:block_user_form' block.user.id %}" class="btn btn-sm btn-primary">
+                                Edit
+                            </a>
+                            <form method="post" action="{% url 'admin:quick_unblock_user' block.user.id %}" class="inline-form">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-danger" 
+                                        onclick="return confirm('Are you sure you want to unblock {{ block.user.username }}?')">
+                                    Unblock
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="no-data">
+                <p>🎉 No users are currently blocked!</p>
+            </div>
+        {% endif %}
+    </div>
+
+    {% if expired_blocks %}
+    <div class="blocks-section">
+        <h2>Recently Expired Blocks</h2>
+        <table class="blocks-table">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Reason</th>
+                    <th>Blocked By</th>
+                    <th>Duration</th>
+                    <th>Expired On</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for block in expired_blocks %}
+                <tr>
+                    <td>
+                        <strong>{{ block.user.username }}</strong><br>
+                        <small>{{ block.user.get_full_name|default:"No name" }}</small>
+                    </td>
+                    <td>{{ block.reason|truncatechars:50 }}</td>
+                    <td>{{ block.blocked_by.username }}</td>
+                    <td>
+                        {% if block.blocked_until and block.blocked_at %}
+                            {{ block.blocked_until|timeuntil:block.blocked_at }}
+                        {% else %}
+                            Unknown
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="status-badge status-expired">
+                            {{ block.blocked_until|date:"M d, Y H:i" }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <div class="actions-section">
+        <a href="{% url 'admin:auth_user_changelist' %}" class="btn btn-primary">
+            Manage Users
+        </a>
+        <a href="{% url 'admin:chatapp_userblock_changelist' %}" class="btn btn-secondary">
+            View All Blocks
+        </a>
+    </div>
+</div>
+
+<style>
+.inline-form {
+    display: inline-block;
+}
+.actions-section {
+    margin-top: 30px;
+    text-align: center;
+}
+</style>
+{% endblock %}
