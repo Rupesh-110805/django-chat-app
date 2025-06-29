@@ -44,8 +44,8 @@ Go to **Environment** tab and add/update these variables:
 
 ```bash
 # Google OAuth2 Configuration
-GOOGLE_OAUTH2_CLIENT_ID=928381654908-n6p7upjh9lslsm1ef0ai5rmgs2qp0kq7.apps.googleusercontent.com
-GOOGLE_OAUTH2_CLIENT_SECRET=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
+GOOGLE_OAUTH2_CLIENT_ID=your-client-id-here.apps.googleusercontent.com
+GOOGLE_OAUTH2_CLIENT_SECRET=your-client-secret-here
 
 # Django Settings
 DEBUG=False
@@ -93,8 +93,8 @@ site.save()
 3. Add a new Social Application:
    - **Provider:** Google
    - **Name:** Google OAuth
-   - **Client ID:** `928381654908-n6p7upjh9lslsm1ef0ai5rmgs2qp0kq7.apps.googleusercontent.com`
-   - **Secret key:** `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`
+   - **Client ID:** `your-client-id-here.apps.googleusercontent.com`
+   - **Secret key:** `your-client-secret-here`
    - **Sites:** Select your site (django-chat-app-nhzc.onrender.com)
 4. Save
 

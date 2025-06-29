@@ -17,7 +17,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--client-id',
             type=str,
-            default='928381654908-n6p7upjh9lslsm1ef0ai5rmgs2qp0kq7.apps.googleusercontent.com',
+            default='your-client-id-here.apps.googleusercontent.com',
             help='Google OAuth Client ID'
         )
         parser.add_argument(

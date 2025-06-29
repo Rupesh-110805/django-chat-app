@@ -16,8 +16,8 @@ SECRET_KEY=your-super-secret-production-key-here-make-it-long-and-random
 ALLOWED_HOSTS=django-chat-app-nhzc.onrender.com
 
 # Google OAuth2 Configuration
-GOOGLE_OAUTH2_CLIENT_ID=928381654908-n6p7upjh9lslsm1ef0ai5rmgs2qp0kq7.apps.googleusercontent.com
-GOOGLE_OAUTH2_CLIENT_SECRET=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
+GOOGLE_OAUTH2_CLIENT_ID=your-client-id-here.apps.googleusercontent.com
+GOOGLE_OAUTH2_CLIENT_SECRET=your-client-secret-here
 
 # Database Configuration (PostgreSQL on Render)
 DATABASE_URL=postgresql://username:password@hostname:port/database_name
