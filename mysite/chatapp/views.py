@@ -7,8 +7,8 @@ from django.utils.text import slugify
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from .models import ChatRoom, ChatMessage, UserPresence, MessageReaction, PrivateRoomMembership
-from .google_oauth_setup import setup_google_oauth
+from .models import ChatRoom, ChatMessage, UserPresence, MessageReaction, PrivateRoomMembership, UserBlock
+from .forms import CustomRegistrationForm
 
 # Create your views here.
 def index(request):
@@ -97,206 +97,60 @@ def leave_room(request, slug):
 @login_required
 @require_POST
 def send_message(request, slug):
-    try:
-        chatroom = ChatRoom.objects.get(slug=slug)
-        # Update presence when sending message
-        UserPresence.update_user_presence(request.user, chatroom)
+    """Send a message to a chat room"""
+    if request.method == 'POST':
+        room = get_object_or_404(ChatRoom, slug=slug)
+        message = request.POST.get('message', '').strip()
         
-        message_content = request.POST.get('message', '').strip()
-        uploaded_file = request.FILES.get('file')
-        
-        if not message_content and not uploaded_file:
-            return JsonResponse({'success': False, 'error': 'Message or file is required'})
-        
-        # Create the message
-        message = ChatMessage(user=request.user, room=chatroom)
-        
-        if uploaded_file:
-            # Handle file upload
-            message.file = uploaded_file
-            message.file_name = uploaded_file.name
-            message.file_size = uploaded_file.size
-            message.message_type = 'image' if uploaded_file.content_type.startswith('image/') else 'file'
-            message.message_content = message_content if message_content else f"Shared a {message.message_type}"
-        else:
-            # Handle text message
-            message.message_content = message_content
-            message.message_type = 'text'
-        
-        message.save()
-        return JsonResponse({'success': True})
-        
-    except ChatRoom.DoesNotExist:
-        return JsonResponse({'success': False, 'error': 'Room not found'})
-    except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)})
+        if message:
+            chat_message = ChatMessage.objects.create(
+                user=request.user,
+                room=room,
+                message=message
+            )
+            return JsonResponse({'status': 'success', 'message_id': chat_message.id})
+    
+    return JsonResponse({'status': 'error'})
 
 @login_required
 def get_messages(request, slug):
-    try:
-        chatroom = ChatRoom.objects.get(slug=slug)
-        # Update presence when polling for messages
-        UserPresence.update_user_presence(request.user, chatroom)
-        
-        last_message_id = int(request.GET.get('last_message_id', 0))
-        
-        new_messages = ChatMessage.objects.filter(
-            room=chatroom,
-            id__gt=last_message_id
-        ).order_by('date')
-        
-        messages_data = []
-        for msg in new_messages:
-            message_data = {
-                'id': msg.id,
-                'username': msg.user.username,
-                'message_content': msg.message_content,
-                'message_type': msg.message_type,
-                'time': msg.date.strftime('%H:%M')
-            }
-            
-            if msg.file:
-                message_data['file_url'] = msg.file.url
-                message_data['file_name'] = msg.file_name
-                message_data['file_size'] = msg.get_file_size_display()
-                message_data['is_image'] = msg.is_image()
-            
-            # Add reaction data
-            reaction_counts = {}
-            for reaction in msg.reactions.all():
-                emoji_key = reaction.emoji
-                if emoji_key not in reaction_counts:
-                    reaction_counts[emoji_key] = {
-                        'count': 0,
-                        'users': [],
-                        'user_reacted': False
-                    }
-                reaction_counts[emoji_key]['count'] += 1
-                reaction_counts[emoji_key]['users'].append(reaction.user.username)
-                if reaction.user == request.user:
-                    reaction_counts[emoji_key]['user_reacted'] = True
-            
-            message_data['reactions'] = reaction_counts
-            messages_data.append(message_data)
-        
-        return JsonResponse({'messages': messages_data})
-    except ChatRoom.DoesNotExist:
-        return JsonResponse({'messages': []})
-    except Exception as e:
-        return JsonResponse({'messages': []})
-
-def login_view(request):
-    if request.method == 'POST':
-        username = request.POST['username']
-        password = request.POST['password']
-        user = authenticate(request, username=username, password=password)
-        if user is not None:
-            login(request, user)
-            return redirect('index')
-        else:
-            messages.error(request, 'Invalid username or password')
-    return render(request, 'chatapp/login.html')
-
-def register_view(request):
-    if request.method == 'POST':
-        username = request.POST['username']
-        email = request.POST['email']
-        password = request.POST['password']
-        password_confirm = request.POST['password_confirm']
-        
-        if password != password_confirm:
-            messages.error(request, 'Passwords do not match')
-            return render(request, 'chatapp/register.html')
-        
-        if User.objects.filter(username=username).exists():
-            messages.error(request, 'Username already exists')
-            return render(request, 'chatapp/register.html')
-        
-        user = User.objects.create_user(username=username, email=email, password=password)
-        login(request, user)
-        return redirect('index')
+    """Get messages for a chat room"""
+    room = get_object_or_404(ChatRoom, slug=slug)
+    messages = ChatMessage.objects.filter(room=room).order_by('-date')[:50]
     
-    return render(request, 'chatapp/register.html')
-
-def logout_view(request):
-    logout(request)
-    return redirect('index')
+    messages_data = []
+    for msg in messages:
+        messages_data.append({
+            'id': msg.id,
+            'user': msg.user.username,
+            'message': msg.message,
+            'date': msg.date.isoformat(),
+        })
+    
+    return JsonResponse({'messages': messages_data})
 
 @login_required
-def create_room(request):
-    if request.method == 'POST':
-        room_name = request.POST['room_name']
-        room_type = request.POST.get('room_type', 'public')
-        room_slug = slugify(room_name)
-        
-        if ChatRoom.objects.filter(slug=room_slug).exists():
-            messages.error(request, 'Room with this name already exists')
-            return render(request, 'chatapp/create_room.html')
-        
-        # Create the room with the current user as owner
-        room = ChatRoom.objects.create(
-            name=room_name, 
-            slug=room_slug, 
-            room_type=room_type,
-            owner=request.user
-        )
-        
-        # If it's a private room, automatically add the owner as a member
-        if room_type == 'private':
-            PrivateRoomMembership.objects.create(user=request.user, room=room)
-            messages.success(request, f'Private room created successfully! Access code: {room.access_code}')
-            return redirect('private_rooms')
-        else:
-            messages.success(request, 'Public room created successfully!')
-            return redirect('index')
-    
-    return render(request, 'chatapp/create_room.html')
-
-@login_required
-@require_POST
 def toggle_reaction(request, slug, message_id):
-    """Toggle emoji reaction on a message"""
-    try:
-        chatroom = ChatRoom.objects.get(slug=slug)
-        message = ChatMessage.objects.get(id=message_id, room=chatroom)
+    """Toggle reaction on a message"""
+    if request.method == 'POST':
+        room = get_object_or_404(ChatRoom, slug=slug)
+        message = get_object_or_404(ChatMessage, id=message_id, room=room)
         emoji = request.POST.get('emoji')
         
-        if not emoji:
-            return JsonResponse({'success': False, 'error': 'Emoji is required'})
-        
-        # Validate emoji is in allowed choices
-        valid_emojis = [choice[0] for choice in MessageReaction.EMOJI_CHOICES]
-        if emoji not in valid_emojis:
-            return JsonResponse({'success': False, 'error': 'Invalid emoji'})
-        
-        # Toggle the reaction
-        reaction = MessageReaction.toggle_reaction(message, request.user, emoji)
-        
-        # Get updated reaction counts for this message
-        reaction_counts = {}
-        for reaction_obj in message.reactions.all():
-            emoji_key = reaction_obj.emoji
-            if emoji_key not in reaction_counts:
-                reaction_counts[emoji_key] = {
-                    'count': 0,
-                    'users': [],
-                    'user_reacted': False
-                }
-            reaction_counts[emoji_key]['count'] += 1
-            reaction_counts[emoji_key]['users'].append(reaction_obj.user.username)
-            if reaction_obj.user == request.user:
-                reaction_counts[emoji_key]['user_reacted'] = True
-        
-        return JsonResponse({
-            'success': True,
-            'added': reaction is not None,
-            'reaction_counts': reaction_counts
-        })
-        
-    except (ChatRoom.DoesNotExist, ChatMessage.DoesNotExist):
-        return JsonResponse({'success': False, 'error': 'Message not found'})
-    except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)})
+        if emoji:
+            reaction, created = MessageReaction.objects.get_or_create(
+                user=request.user,
+                message=message,
+                emoji=emoji
+            )
+            
+            if not created:
+                reaction.delete()
+                return JsonResponse({'status': 'removed'})
+            
+            return JsonResponse({'status': 'added'})
+    
+    return JsonResponse({'status': 'error'})
 
 @login_required
 def private_rooms(request):
@@ -371,3 +225,76 @@ def delete_private_room(request, slug):
         return redirect('private_rooms')
     
     return render(request, 'chatapp/confirm_delete_room.html', {'room': room})
+
+@login_required
+def setup_google_oauth(request):
+    """Setup Google OAuth configuration guide"""
+    return render(request, 'chatapp/setup_google_oauth.html')
+
+def register_view(request):
+    if request.method == 'POST':
+        form = CustomRegistrationForm(request.POST)
+        if form.is_valid():
+            try:
+                # Create the user using the form's save method
+                user = form.save()
+                
+                # Log the user in automatically after successful registration
+                login(request, user)
+                
+                messages.success(request, f'Welcome {user.username}! Your account has been created successfully.')
+                return redirect('index')
+                
+            except Exception as e:
+                messages.error(request, f'An error occurred while creating your account: {str(e)}')
+                return render(request, 'chatapp/register.html', {'form': form})
+        else:
+            # Form has validation errors
+            return render(request, 'chatapp/register.html', {'form': form})
+    else:
+        form = CustomRegistrationForm()
+    
+    return render(request, 'chatapp/register.html', {'form': form})
+
+def login_view(request):
+    if request.method == 'POST':
+        username = request.POST['username']
+        password = request.POST['password']
+        
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            login(request, user)
+            messages.success(request, f'Welcome back, {user.username}!')
+            return redirect('index')
+        else:
+            messages.error(request, 'Invalid username or password.')
+    
+    return render(request, 'chatapp/login.html')
+
+def logout_view(request):
+    logout(request)
+    messages.success(request, 'You have been logged out successfully.')
+    return redirect('index')
+
+@login_required
+def create_room(request):
+    if request.method == 'POST':
+        room_name = request.POST['room_name']
+        room_type = request.POST.get('room_type', 'public')
+        room_slug = slugify(room_name)
+        
+        if ChatRoom.objects.filter(slug=room_slug).exists():
+            messages.error(request, 'Room with this name already exists')
+            return render(request, 'chatapp/create_room.html')
+        
+        room = ChatRoom.objects.create(
+            name=room_name,
+            slug=room_slug,
+            room_type=room_type,
+            owner=request.user
+        )
+        
+        messages.success(request, f'Room "{room_name}" created successfully!')
+        return redirect('chatroom', slug=room_slug)
+    
+    return render(request, 'chatapp/create_room.html')

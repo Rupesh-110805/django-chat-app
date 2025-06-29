@@ -38,28 +38,62 @@
     
     <form method="post">
         {% csrf_token %}
+        
+        <!-- Display non-field errors (form-wide errors) -->
+        {% if form.non_field_errors %}
+            <div class="mb-4 bg-red-100 dark:bg-red-800 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-200 px-4 py-3 rounded">
+                {% for error in form.non_field_errors %}
+                    <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+        
         <div class="mb-4">
-            <label for="username" class="block text-secondary text-sm font-bold mb-2">Username:</label>
-            <input type="text" id="username" name="username" required 
-                   class="w-full px-3 py-2 border border-custom rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-black dark:text-white">
+            <label for="{{ form.username.id_for_label }}" class="block text-secondary text-sm font-bold mb-2">Username:</label>
+            {{ form.username }}
+            {% if form.username.errors %}
+                <div class="mt-1 text-red-600 dark:text-red-400 text-sm">
+                    {% for error in form.username.errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
         </div>
         
         <div class="mb-4">
-            <label for="email" class="block text-secondary text-sm font-bold mb-2">Email:</label>
-            <input type="email" id="email" name="email" required 
-                   class="w-full px-3 py-2 border border-custom rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-black dark:text-white">
+            <label for="{{ form.email.id_for_label }}" class="block text-secondary text-sm font-bold mb-2">Email:</label>
+            {{ form.email }}
+            {% if form.email.errors %}
+                <div class="mt-1 text-red-600 dark:text-red-400 text-sm">
+                    {% for error in form.email.errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
         </div>
         
         <div class="mb-4">
-            <label for="password" class="block text-secondary text-sm font-bold mb-2">Password:</label>
-            <input type="password" id="password" name="password" required 
-                   class="w-full px-3 py-2 border border-custom rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-black dark:text-white">
+            <label for="{{ form.password.id_for_label }}" class="block text-secondary text-sm font-bold mb-2">Password:</label>
+            {{ form.password }}
+            {% if form.password.errors %}
+                <div class="mt-1 text-red-600 dark:text-red-400 text-sm">
+                    {% for error in form.password.errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
         </div>
         
         <div class="mb-6">
-            <label for="password_confirm" class="block text-secondary text-sm font-bold mb-2">Confirm Password:</label>
-            <input type="password" id="password_confirm" name="password_confirm" required 
-                   class="w-full px-3 py-2 border border-custom rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-black dark:text-white">
+            <label for="{{ form.password_confirm.id_for_label }}" class="block text-secondary text-sm font-bold mb-2">Confirm Password:</label>
+            {{ form.password_confirm }}
+            {% if form.password_confirm.errors %}
+                <div class="mt-1 text-red-600 dark:text-red-400 text-sm">
+                    {% for error in form.password_confirm.errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
         </div>
         
         <div class="flex items-center justify-between">
