@@ -23,7 +23,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--client-secret',
             type=str,
-            default='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',
+            default='your-client-secret-here',
             help='Google OAuth Client Secret'
         )
 

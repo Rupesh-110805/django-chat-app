@@ -29,7 +29,7 @@ EMAIL_PORT=587
 EMAIL_USE_TLS=True
 EMAIL_HOST_USER=your-gmail-address@gmail.com
 EMAIL_HOST_PASSWORD=your-gmail-app-password
-DEFAULT_FROM_EMAIL=rupeshnidadavolu110805@gmail.com
+DEFAULT_FROM_EMAIL=your-gmail-address@gmail.com
 
 # Python Runtime
 PYTHON_VERSION=3.12.0
@@ -59,7 +59,7 @@ Copy the output and use it as your `SECRET_KEY` in Render.
 ### **Option 2: Keep using Neon PostgreSQL**
 Use your existing Neon database URL:
 ```
-DATABASE_URL=postgresql://neondb_owner:npg_nbIXSjDk3uO6@ep-young-moon-a8az5w7q-pooler.eastus2.azure.neon.tech/neondb?sslmode=require
+DATABASE_URL=your-database-url-here
 ```
 
 ---

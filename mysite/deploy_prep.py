@@ -69,7 +69,7 @@ def main():
     print()
     print("1. Set environment variables in Render:")
     print("   DEBUG=False")
-    print("   SECRET_KEY=itz!7rfpl8=ofjqw5=0x0l#aor21!f-(5r+ek-kj787vkqo8ro")
+    print("   SECRET_KEY=your-production-secret-key-here")
     print("   ALLOWED_HOSTS=django-chat-app-nhzc.onrender.com")
     print("   DATABASE_URL=<your-database-url>")
     print("   GOOGLE_OAUTH2_CLIENT_ID=your-client-id-here.apps.googleusercontent.com")
