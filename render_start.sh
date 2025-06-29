@@ -15,16 +15,19 @@ export DJANGO_SETTINGS_MODULE=mysite.settings
 # Navigate to Django project directory
 cd mysite
 
-echo "1. Running database migrations..."
+echo "1. Testing database connectivity..."
+python ../test_db_connection.py || echo "⚠️ Database connectivity test failed, proceeding anyway"
+
+echo "2. Running database migrations..."
 python manage.py migrate --noinput
 
-echo "2. Collecting static files..."
+echo "3. Collecting static files..."
 python manage.py collectstatic --noinput
 
-echo "3. Creating superuser if none exists..."
+echo "4. Creating superuser if none exists..."
 python manage.py create_superuser_if_none || echo "⚠️ Superuser creation failed, but continuing..."
 
-echo "4. Checking if superuser exists and creating backup..."
+echo "5. Checking if superuser exists and creating backup..."
 python manage.py shell -c "
 from django.contrib.auth.models import User
 import os
@@ -85,5 +88,5 @@ for su in all_superusers:
     print(f'Username: {su.username}, Email: {su.email}')
 "
 
-echo "5. Starting server..."
+echo "6. Starting server..."
 exec daphne -b 0.0.0.0 -p $PORT mysite.asgi:application
