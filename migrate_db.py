@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 Database migration script to transfer data from SQLite to PostgreSQL
 Run this script before switching to PostgreSQL in production
@@ -6,18 +5,15 @@ Run this script before switching to PostgreSQL in production
 import os
 import sys
 
-# Add the mysite directory to the Python path
 script_dir = os.path.dirname(os.path.abspath(__file__))
 mysite_dir = os.path.join(script_dir, 'mysite')
 sys.path.insert(0, mysite_dir)
 
-# Change to mysite directory
 os.chdir(mysite_dir)
 
 import django
 from django.core.management import call_command
 
-# Setup Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mysite.settings')
 django.setup()
 

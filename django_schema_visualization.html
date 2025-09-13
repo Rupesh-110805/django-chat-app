@@ -1,0 +1,1557 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Django Chat App - Database Schema</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        
+        .stat-card {
+            background: rgba(255,255,255,0.95);
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .stat-label {
+            margin-top: 10px;
+            color: #666;
+            font-weight: 500;
+        }
+        
+        .app-section {
+            background: rgba(255,255,255,0.95);
+            margin-bottom: 30px;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .app-header {
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            color: white;
+            padding: 20px 30px;
+            font-size: 1.3em;
+            font-weight: bold;
+        }
+        
+        .models-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 0;
+        }
+        
+        .model-card {
+            padding: 25px 30px;
+            border-right: 1px solid #eee;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .model-card:nth-child(even) {
+            background: #f8f9fa;
+        }
+        
+        .model-name {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .table-badge {
+            background: #e9ecef;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            color: #6c757d;
+            font-weight: normal;
+        }
+        
+        .fields-container {
+            margin-top: 15px;
+        }
+        
+        .field-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #f1f3f4;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .field-item:last-child {
+            border-bottom: none;
+        }
+        
+        .field-name {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .field-type {
+            background: #e3f2fd;
+            color: #1565c0;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 500;
+        }
+        
+        .field-type.primary {
+            background: #ffebee;
+            color: #c62828;
+        }
+        
+        .field-type.foreign {
+            background: #fff3e0;
+            color: #ef6c00;
+        }
+        
+        .relationships {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .relationship {
+            margin: 8px 0;
+            font-size: 0.9em;
+            color: #495057;
+        }
+        
+        .toggle-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 6px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.8em;
+            transition: all 0.3s ease;
+            margin-left: auto;
+        }
+        
+        .toggle-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .search-container {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .search-box {
+            padding: 12px 20px;
+            font-size: 1.1em;
+            border: none;
+            border-radius: 25px;
+            background: rgba(255,255,255,0.9);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 300px;
+            max-width: 100%;
+        }
+        
+        .search-box:focus {
+            outline: none;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-database"></i> Django Chat App Schema</h1>
+            <p>Complete database structure and relationships</p>
+        </div>
+        
+        <div class="search-container">
+            <input type="text" class="search-box" placeholder="🔍 Search models..." onkeyup="searchModels(this.value)">
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number">18</div>
+                <div class="stat-label"><i class="fas fa-table"></i> Total Models</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">8</div>
+                <div class="stat-label"><i class="fas fa-cube"></i> Django Apps</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">46</div>
+                <div class="stat-label"><i class="fas fa-link"></i> Relationships</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">130</div>
+                <div class="stat-label"><i class="fas fa-columns"></i> Total Fields</div>
+            </div>
+        </div>
+
+        
+        <div class="app-section">
+            <div class="app-header">
+                <i class="fas fa-cube"></i> CHATAPP (6 models)
+            </div>
+            <div class="models-grid">
+        
+                <div class="model-card" data-model="userblock">
+                    <div class="model-name">
+                        <i class="fas fa-table"></i>
+                        UserBlock
+                        <span class="table-badge">chatapp_userblock</span>
+                        <button class="toggle-btn" id="btn-chatapp_UserBlock" onclick="toggleFields('chatapp_UserBlock')">
+                            <i class="fas fa-eye"></i> Show
+                        </button>
+                    </div>
+                    
+                    <div id="fields-chatapp_UserBlock" class="fields-container hidden">
+            
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-key"></i> id [unique, blank]
+                            </span>
+                            <span class="field-type primary">BigAutoField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> user
+                            </span>
+                            <span class="field-type foreign">ForeignKey</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> blocked_by
+                            </span>
+                            <span class="field-type foreign">ForeignKey</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> block_type [max=10]
+                            </span>
+                            <span class="field-type foreign">CharField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> reason
+                            </span>
+                            <span class="field-type foreign">TextField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> blocked_at [blank]
+                            </span>
+                            <span class="field-type foreign">DateTimeField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> blocked_until [null, blank]
+                            </span>
+                            <span class="field-type foreign">DateTimeField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> is_active
+                            </span>
+                            <span class="field-type foreign">BooleanField</span>
+                        </div>
+                    <div class="relationships"><strong><i class="fas fa-project-diagram"></i> Relationships:</strong><div class="relationship">• user (ForeignKey) → User</div><div class="relationship">• blocked_by (ForeignKey) → User</div></div>
+                    </div>
+                </div>
+            
+                <div class="model-card" data-model="chatroom">
+                    <div class="model-name">
+                        <i class="fas fa-table"></i>
+                        ChatRoom
+                        <span class="table-badge">chatapp_chatroom</span>
+                        <button class="toggle-btn" id="btn-chatapp_ChatRoom" onclick="toggleFields('chatapp_ChatRoom')">
+                            <i class="fas fa-eye"></i> Show
+                        </button>
+                    </div>
+                    
+                    <div id="fields-chatapp_ChatRoom" class="fields-container hidden">
+            
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> privateroommembership [null]
+                            </span>
+                            <span class="field-type foreign">ManyToOneRel</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> userpresence [null]
+                            </span>
+                            <span class="field-type foreign">ManyToOneRel</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> chatmessage [null]
+                            </span>
+                            <span class="field-type foreign">ManyToOneRel</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-key"></i> id [unique, blank]
+                            </span>
+                            <span class="field-type primary">BigAutoField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> name [max=100]
+                            </span>
+                            <span class="field-type foreign">CharField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> slug [max=50, unique]
+                            </span>
+                            <span class="field-type foreign">SlugField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> room_type [max=10]
+                            </span>
+                            <span class="field-type foreign">CharField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> access_code [max=20, null, blank]
+                            </span>
+                            <span class="field-type foreign">CharField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> owner
+                            </span>
+                            <span class="field-type foreign">ForeignKey</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> created_at [blank]
+                            </span>
+                            <span class="field-type foreign">DateTimeField</span>
+                        </div>
+                    <div class="relationships"><strong><i class="fas fa-project-diagram"></i> Relationships:</strong><div class="relationship">• privateroommembership (ManyToOneRel) → PrivateRoomMembership</div><div class="relationship">• userpresence (ManyToOneRel) → UserPresence</div><div class="relationship">• chatmessage (ManyToOneRel) → ChatMessage</div><div class="relationship">• owner (ForeignKey) → User</div></div>
+                    </div>
+                </div>
+            
+                <div class="model-card" data-model="privateroommembership">
+                    <div class="model-name">
+                        <i class="fas fa-table"></i>
+                        PrivateRoomMembership
+                        <span class="table-badge">chatapp_privateroommembership</span>
+                        <button class="toggle-btn" id="btn-chatapp_PrivateRoomMembership" onclick="toggleFields('chatapp_PrivateRoomMembership')">
+                            <i class="fas fa-eye"></i> Show
+                        </button>
+                    </div>
+                    
+                    <div id="fields-chatapp_PrivateRoomMembership" class="fields-container hidden">
+            
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-key"></i> id [unique, blank]
+                            </span>
+                            <span class="field-type primary">BigAutoField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> user
+                            </span>
+                            <span class="field-type foreign">ForeignKey</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> room
+                            </span>
+                            <span class="field-type foreign">ForeignKey</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> joined_at [blank]
+                            </span>
+                            <span class="field-type foreign">DateTimeField</span>
+                        </div>
+                    <div class="relationships"><strong><i class="fas fa-project-diagram"></i> Relationships:</strong><div class="relationship">• user (ForeignKey) → User</div><div class="relationship">• room (ForeignKey) → ChatRoom</div></div>
+                    </div>
+                </div>
+            
+                <div class="model-card" data-model="userpresence">
+                    <div class="model-name">
+                        <i class="fas fa-table"></i>
+                        UserPresence
+                        <span class="table-badge">chatapp_userpresence</span>
+                        <button class="toggle-btn" id="btn-chatapp_UserPresence" onclick="toggleFields('chatapp_UserPresence')">
+                            <i class="fas fa-eye"></i> Show
+                        </button>
+                    </div>
+                    
+                    <div id="fields-chatapp_UserPresence" class="fields-container hidden">
+            
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-key"></i> id [unique, blank]
+                            </span>
+                            <span class="field-type primary">BigAutoField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> user
+                            </span>
+                            <span class="field-type foreign">ForeignKey</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> room
+                            </span>
+                            <span class="field-type foreign">ForeignKey</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> last_seen [blank]
+                            </span>
+                            <span class="field-type foreign">DateTimeField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> is_online
+                            </span>
+                            <span class="field-type foreign">BooleanField</span>
+                        </div>
+                    <div class="relationships"><strong><i class="fas fa-project-diagram"></i> Relationships:</strong><div class="relationship">• user (ForeignKey) → User</div><div class="relationship">• room (ForeignKey) → ChatRoom</div></div>
+                    </div>
+                </div>
+            
+                <div class="model-card" data-model="chatmessage">
+                    <div class="model-name">
+                        <i class="fas fa-table"></i>
+                        ChatMessage
+                        <span class="table-badge">chatapp_chatmessage</span>
+                        <button class="toggle-btn" id="btn-chatapp_ChatMessage" onclick="toggleFields('chatapp_ChatMessage')">
+                            <i class="fas fa-eye"></i> Show
+                        </button>
+                    </div>
+                    
+                    <div id="fields-chatapp_ChatMessage" class="fields-container hidden">
+            
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> reactions [null]
+                            </span>
+                            <span class="field-type foreign">ManyToOneRel</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-key"></i> id [unique, blank]
+                            </span>
+                            <span class="field-type primary">BigAutoField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> user
+                            </span>
+                            <span class="field-type foreign">ForeignKey</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> room
+                            </span>
+                            <span class="field-type foreign">ForeignKey</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> message_content [blank]
+                            </span>
+                            <span class="field-type foreign">TextField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> message_type [max=10]
+                            </span>
+                            <span class="field-type foreign">CharField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> file [max=100, null, blank]
+                            </span>
+                            <span class="field-type foreign">FileField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> file_name [max=255, blank]
+                            </span>
+                            <span class="field-type foreign">CharField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> file_size
+                            </span>
+                            <span class="field-type foreign">IntegerField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> date [blank]
+                            </span>
+                            <span class="field-type foreign">DateTimeField</span>
+                        </div>
+                    <div class="relationships"><strong><i class="fas fa-project-diagram"></i> Relationships:</strong><div class="relationship">• reactions (ManyToOneRel) → MessageReaction</div><div class="relationship">• user (ForeignKey) → User</div><div class="relationship">• room (ForeignKey) → ChatRoom</div></div>
+                    </div>
+                </div>
+            
+                <div class="model-card" data-model="messagereaction">
+                    <div class="model-name">
+                        <i class="fas fa-table"></i>
+                        MessageReaction
+                        <span class="table-badge">chatapp_messagereaction</span>
+                        <button class="toggle-btn" id="btn-chatapp_MessageReaction" onclick="toggleFields('chatapp_MessageReaction')">
+                            <i class="fas fa-eye"></i> Show
+                        </button>
+                    </div>
+                    
+                    <div id="fields-chatapp_MessageReaction" class="fields-container hidden">
+            
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-key"></i> id [unique, blank]
+                            </span>
+                            <span class="field-type primary">BigAutoField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> message
+                            </span>
+                            <span class="field-type foreign">ForeignKey</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> user
+                            </span>
+                            <span class="field-type foreign">ForeignKey</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> emoji [max=10]
+                            </span>
+                            <span class="field-type foreign">CharField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> created_at [blank]
+                            </span>
+                            <span class="field-type foreign">DateTimeField</span>
+                        </div>
+                    <div class="relationships"><strong><i class="fas fa-project-diagram"></i> Relationships:</strong><div class="relationship">• message (ForeignKey) → ChatMessage</div><div class="relationship">• user (ForeignKey) → User</div></div>
+                    </div>
+                </div>
+            
+            </div>
+        </div>
+        
+        <div class="app-section">
+            <div class="app-header">
+                <i class="fas fa-cube"></i> ADMIN (1 models)
+            </div>
+            <div class="models-grid">
+        
+                <div class="model-card" data-model="logentry">
+                    <div class="model-name">
+                        <i class="fas fa-table"></i>
+                        LogEntry
+                        <span class="table-badge">django_admin_log</span>
+                        <button class="toggle-btn" id="btn-admin_LogEntry" onclick="toggleFields('admin_LogEntry')">
+                            <i class="fas fa-eye"></i> Show
+                        </button>
+                    </div>
+                    
+                    <div id="fields-admin_LogEntry" class="fields-container hidden">
+            
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-key"></i> id [unique, blank]
+                            </span>
+                            <span class="field-type primary">AutoField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> action_time
+                            </span>
+                            <span class="field-type foreign">DateTimeField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> user
+                            </span>
+                            <span class="field-type foreign">ForeignKey</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> content_type [null, blank]
+                            </span>
+                            <span class="field-type foreign">ForeignKey</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> object_id [null, blank]
+                            </span>
+                            <span class="field-type foreign">TextField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> object_repr [max=200]
+                            </span>
+                            <span class="field-type foreign">CharField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> action_flag
+                            </span>
+                            <span class="field-type foreign">PositiveSmallIntegerField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> change_message [blank]
+                            </span>
+                            <span class="field-type foreign">TextField</span>
+                        </div>
+                    <div class="relationships"><strong><i class="fas fa-project-diagram"></i> Relationships:</strong><div class="relationship">• user (ForeignKey) → User</div><div class="relationship">• content_type (ForeignKey) → ContentType</div></div>
+                    </div>
+                </div>
+            
+            </div>
+        </div>
+        
+        <div class="app-section">
+            <div class="app-header">
+                <i class="fas fa-cube"></i> AUTH (3 models)
+            </div>
+            <div class="models-grid">
+        
+                <div class="model-card" data-model="permission">
+                    <div class="model-name">
+                        <i class="fas fa-table"></i>
+                        Permission
+                        <span class="table-badge">auth_permission</span>
+                        <button class="toggle-btn" id="btn-auth_Permission" onclick="toggleFields('auth_Permission')">
+                            <i class="fas fa-eye"></i> Show
+                        </button>
+                    </div>
+                    
+                    <div id="fields-auth_Permission" class="fields-container hidden">
+            
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> group [null]
+                            </span>
+                            <span class="field-type foreign">ManyToManyRel</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> user [null]
+                            </span>
+                            <span class="field-type foreign">ManyToManyRel</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-key"></i> id [unique, blank]
+                            </span>
+                            <span class="field-type primary">AutoField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> name [max=255]
+                            </span>
+                            <span class="field-type foreign">CharField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> content_type
+                            </span>
+                            <span class="field-type foreign">ForeignKey</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> codename [max=100]
+                            </span>
+                            <span class="field-type foreign">CharField</span>
+                        </div>
+                    <div class="relationships"><strong><i class="fas fa-project-diagram"></i> Relationships:</strong><div class="relationship">• group (ManyToManyRel) → Group</div><div class="relationship">• user (ManyToManyRel) → User</div><div class="relationship">• content_type (ForeignKey) → ContentType</div></div>
+                    </div>
+                </div>
+            
+                <div class="model-card" data-model="group">
+                    <div class="model-name">
+                        <i class="fas fa-table"></i>
+                        Group
+                        <span class="table-badge">auth_group</span>
+                        <button class="toggle-btn" id="btn-auth_Group" onclick="toggleFields('auth_Group')">
+                            <i class="fas fa-eye"></i> Show
+                        </button>
+                    </div>
+                    
+                    <div id="fields-auth_Group" class="fields-container hidden">
+            
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> user [null]
+                            </span>
+                            <span class="field-type foreign">ManyToManyRel</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-key"></i> id [unique, blank]
+                            </span>
+                            <span class="field-type primary">AutoField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> name [max=150, unique]
+                            </span>
+                            <span class="field-type foreign">CharField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> permissions [blank]
+                            </span>
+                            <span class="field-type foreign">ManyToManyField</span>
+                        </div>
+                    <div class="relationships"><strong><i class="fas fa-project-diagram"></i> Relationships:</strong><div class="relationship">• user (ManyToManyRel) → User</div><div class="relationship">• permissions (ManyToManyField) → Permission</div></div>
+                    </div>
+                </div>
+            
+                <div class="model-card" data-model="user">
+                    <div class="model-name">
+                        <i class="fas fa-table"></i>
+                        User
+                        <span class="table-badge">auth_user</span>
+                        <button class="toggle-btn" id="btn-auth_User" onclick="toggleFields('auth_User')">
+                            <i class="fas fa-eye"></i> Show
+                        </button>
+                    </div>
+                    
+                    <div id="fields-auth_User" class="fields-container hidden">
+            
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> blocks [null]
+                            </span>
+                            <span class="field-type foreign">ManyToOneRel</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> blocked_users [null]
+                            </span>
+                            <span class="field-type foreign">ManyToOneRel</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> owned_rooms [null]
+                            </span>
+                            <span class="field-type foreign">ManyToOneRel</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> privateroommembership [null]
+                            </span>
+                            <span class="field-type foreign">ManyToOneRel</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> userpresence [null]
+                            </span>
+                            <span class="field-type foreign">ManyToOneRel</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> chatmessage [null]
+                            </span>
+                            <span class="field-type foreign">ManyToOneRel</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> messagereaction [null]
+                            </span>
+                            <span class="field-type foreign">ManyToOneRel</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> logentry [null]
+                            </span>
+                            <span class="field-type foreign">ManyToOneRel</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> emailaddress [null]
+                            </span>
+                            <span class="field-type foreign">ManyToOneRel</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> socialaccount [null]
+                            </span>
+                            <span class="field-type foreign">ManyToOneRel</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-key"></i> id [unique, blank]
+                            </span>
+                            <span class="field-type primary">AutoField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> password [max=128]
+                            </span>
+                            <span class="field-type foreign">CharField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> last_login [null, blank]
+                            </span>
+                            <span class="field-type foreign">DateTimeField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> is_superuser
+                            </span>
+                            <span class="field-type foreign">BooleanField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> username [max=150, unique]
+                            </span>
+                            <span class="field-type foreign">CharField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> first_name [max=150, blank]
+                            </span>
+                            <span class="field-type foreign">CharField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> last_name [max=150, blank]
+                            </span>
+                            <span class="field-type foreign">CharField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> email [max=254, blank]
+                            </span>
+                            <span class="field-type foreign">EmailField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> is_staff
+                            </span>
+                            <span class="field-type foreign">BooleanField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> is_active
+                            </span>
+                            <span class="field-type foreign">BooleanField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> date_joined
+                            </span>
+                            <span class="field-type foreign">DateTimeField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> groups [blank]
+                            </span>
+                            <span class="field-type foreign">ManyToManyField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> user_permissions [blank]
+                            </span>
+                            <span class="field-type foreign">ManyToManyField</span>
+                        </div>
+                    <div class="relationships"><strong><i class="fas fa-project-diagram"></i> Relationships:</strong><div class="relationship">• blocks (ManyToOneRel) → UserBlock</div><div class="relationship">• blocked_users (ManyToOneRel) → UserBlock</div><div class="relationship">• owned_rooms (ManyToOneRel) → ChatRoom</div><div class="relationship">• privateroommembership (ManyToOneRel) → PrivateRoomMembership</div><div class="relationship">• userpresence (ManyToOneRel) → UserPresence</div><div class="relationship">• chatmessage (ManyToOneRel) → ChatMessage</div><div class="relationship">• messagereaction (ManyToOneRel) → MessageReaction</div><div class="relationship">• logentry (ManyToOneRel) → LogEntry</div><div class="relationship">• emailaddress (ManyToOneRel) → EmailAddress</div><div class="relationship">• socialaccount (ManyToOneRel) → SocialAccount</div><div class="relationship">• groups (ManyToManyField) → Group</div><div class="relationship">• user_permissions (ManyToManyField) → Permission</div></div>
+                    </div>
+                </div>
+            
+            </div>
+        </div>
+        
+        <div class="app-section">
+            <div class="app-header">
+                <i class="fas fa-cube"></i> CONTENTTYPES (1 models)
+            </div>
+            <div class="models-grid">
+        
+                <div class="model-card" data-model="contenttype">
+                    <div class="model-name">
+                        <i class="fas fa-table"></i>
+                        ContentType
+                        <span class="table-badge">django_content_type</span>
+                        <button class="toggle-btn" id="btn-contenttypes_ContentType" onclick="toggleFields('contenttypes_ContentType')">
+                            <i class="fas fa-eye"></i> Show
+                        </button>
+                    </div>
+                    
+                    <div id="fields-contenttypes_ContentType" class="fields-container hidden">
+            
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> logentry [null]
+                            </span>
+                            <span class="field-type foreign">ManyToOneRel</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> permission [null]
+                            </span>
+                            <span class="field-type foreign">ManyToOneRel</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-key"></i> id [unique, blank]
+                            </span>
+                            <span class="field-type primary">AutoField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> app_label [max=100]
+                            </span>
+                            <span class="field-type foreign">CharField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> model [max=100]
+                            </span>
+                            <span class="field-type foreign">CharField</span>
+                        </div>
+                    <div class="relationships"><strong><i class="fas fa-project-diagram"></i> Relationships:</strong><div class="relationship">• logentry (ManyToOneRel) → LogEntry</div><div class="relationship">• permission (ManyToOneRel) → Permission</div></div>
+                    </div>
+                </div>
+            
+            </div>
+        </div>
+        
+        <div class="app-section">
+            <div class="app-header">
+                <i class="fas fa-cube"></i> SESSIONS (1 models)
+            </div>
+            <div class="models-grid">
+        
+                <div class="model-card" data-model="session">
+                    <div class="model-name">
+                        <i class="fas fa-table"></i>
+                        Session
+                        <span class="table-badge">django_session</span>
+                        <button class="toggle-btn" id="btn-sessions_Session" onclick="toggleFields('sessions_Session')">
+                            <i class="fas fa-eye"></i> Show
+                        </button>
+                    </div>
+                    
+                    <div id="fields-sessions_Session" class="fields-container hidden">
+            
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-key"></i> session_key [max=40, unique]
+                            </span>
+                            <span class="field-type primary">CharField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> session_data
+                            </span>
+                            <span class="field-type foreign">TextField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> expire_date
+                            </span>
+                            <span class="field-type foreign">DateTimeField</span>
+                        </div>
+                    
+                    </div>
+                </div>
+            
+            </div>
+        </div>
+        
+        <div class="app-section">
+            <div class="app-header">
+                <i class="fas fa-cube"></i> SITES (1 models)
+            </div>
+            <div class="models-grid">
+        
+                <div class="model-card" data-model="site">
+                    <div class="model-name">
+                        <i class="fas fa-table"></i>
+                        Site
+                        <span class="table-badge">django_site</span>
+                        <button class="toggle-btn" id="btn-sites_Site" onclick="toggleFields('sites_Site')">
+                            <i class="fas fa-eye"></i> Show
+                        </button>
+                    </div>
+                    
+                    <div id="fields-sites_Site" class="fields-container hidden">
+            
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> socialapp [null]
+                            </span>
+                            <span class="field-type foreign">ManyToManyRel</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-key"></i> id [unique, blank]
+                            </span>
+                            <span class="field-type primary">AutoField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> domain [max=100, unique]
+                            </span>
+                            <span class="field-type foreign">CharField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> name [max=50]
+                            </span>
+                            <span class="field-type foreign">CharField</span>
+                        </div>
+                    <div class="relationships"><strong><i class="fas fa-project-diagram"></i> Relationships:</strong><div class="relationship">• socialapp (ManyToManyRel) → SocialApp</div></div>
+                    </div>
+                </div>
+            
+            </div>
+        </div>
+        
+        <div class="app-section">
+            <div class="app-header">
+                <i class="fas fa-cube"></i> ACCOUNT (2 models)
+            </div>
+            <div class="models-grid">
+        
+                <div class="model-card" data-model="emailaddress">
+                    <div class="model-name">
+                        <i class="fas fa-table"></i>
+                        EmailAddress
+                        <span class="table-badge">account_emailaddress</span>
+                        <button class="toggle-btn" id="btn-account_EmailAddress" onclick="toggleFields('account_EmailAddress')">
+                            <i class="fas fa-eye"></i> Show
+                        </button>
+                    </div>
+                    
+                    <div id="fields-account_EmailAddress" class="fields-container hidden">
+            
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> emailconfirmation [null]
+                            </span>
+                            <span class="field-type foreign">ManyToOneRel</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-key"></i> id [unique, blank]
+                            </span>
+                            <span class="field-type primary">AutoField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> user
+                            </span>
+                            <span class="field-type foreign">ForeignKey</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> email [max=254]
+                            </span>
+                            <span class="field-type foreign">EmailField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> verified
+                            </span>
+                            <span class="field-type foreign">BooleanField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> primary
+                            </span>
+                            <span class="field-type foreign">BooleanField</span>
+                        </div>
+                    <div class="relationships"><strong><i class="fas fa-project-diagram"></i> Relationships:</strong><div class="relationship">• emailconfirmation (ManyToOneRel) → EmailConfirmation</div><div class="relationship">• user (ForeignKey) → User</div></div>
+                    </div>
+                </div>
+            
+                <div class="model-card" data-model="emailconfirmation">
+                    <div class="model-name">
+                        <i class="fas fa-table"></i>
+                        EmailConfirmation
+                        <span class="table-badge">account_emailconfirmation</span>
+                        <button class="toggle-btn" id="btn-account_EmailConfirmation" onclick="toggleFields('account_EmailConfirmation')">
+                            <i class="fas fa-eye"></i> Show
+                        </button>
+                    </div>
+                    
+                    <div id="fields-account_EmailConfirmation" class="fields-container hidden">
+            
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-key"></i> id [unique, blank]
+                            </span>
+                            <span class="field-type primary">AutoField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> email_address
+                            </span>
+                            <span class="field-type foreign">ForeignKey</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> created
+                            </span>
+                            <span class="field-type foreign">DateTimeField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> sent [null]
+                            </span>
+                            <span class="field-type foreign">DateTimeField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> key [max=64, unique]
+                            </span>
+                            <span class="field-type foreign">CharField</span>
+                        </div>
+                    <div class="relationships"><strong><i class="fas fa-project-diagram"></i> Relationships:</strong><div class="relationship">• email_address (ForeignKey) → EmailAddress</div></div>
+                    </div>
+                </div>
+            
+            </div>
+        </div>
+        
+        <div class="app-section">
+            <div class="app-header">
+                <i class="fas fa-cube"></i> SOCIALACCOUNT (3 models)
+            </div>
+            <div class="models-grid">
+        
+                <div class="model-card" data-model="socialapp">
+                    <div class="model-name">
+                        <i class="fas fa-table"></i>
+                        SocialApp
+                        <span class="table-badge">socialaccount_socialapp</span>
+                        <button class="toggle-btn" id="btn-socialaccount_SocialApp" onclick="toggleFields('socialaccount_SocialApp')">
+                            <i class="fas fa-eye"></i> Show
+                        </button>
+                    </div>
+                    
+                    <div id="fields-socialaccount_SocialApp" class="fields-container hidden">
+            
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> socialtoken [null]
+                            </span>
+                            <span class="field-type foreign">ManyToOneRel</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-key"></i> id [unique, blank]
+                            </span>
+                            <span class="field-type primary">AutoField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> provider [max=30]
+                            </span>
+                            <span class="field-type foreign">CharField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> provider_id [max=200, blank]
+                            </span>
+                            <span class="field-type foreign">CharField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> name [max=40]
+                            </span>
+                            <span class="field-type foreign">CharField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> client_id [max=191]
+                            </span>
+                            <span class="field-type foreign">CharField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> secret [max=191, blank]
+                            </span>
+                            <span class="field-type foreign">CharField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> key [max=191, blank]
+                            </span>
+                            <span class="field-type foreign">CharField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> settings [blank]
+                            </span>
+                            <span class="field-type foreign">JSONField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> sites [blank]
+                            </span>
+                            <span class="field-type foreign">ManyToManyField</span>
+                        </div>
+                    <div class="relationships"><strong><i class="fas fa-project-diagram"></i> Relationships:</strong><div class="relationship">• socialtoken (ManyToOneRel) → SocialToken</div><div class="relationship">• sites (ManyToManyField) → Site</div></div>
+                    </div>
+                </div>
+            
+                <div class="model-card" data-model="socialaccount">
+                    <div class="model-name">
+                        <i class="fas fa-table"></i>
+                        SocialAccount
+                        <span class="table-badge">socialaccount_socialaccount</span>
+                        <button class="toggle-btn" id="btn-socialaccount_SocialAccount" onclick="toggleFields('socialaccount_SocialAccount')">
+                            <i class="fas fa-eye"></i> Show
+                        </button>
+                    </div>
+                    
+                    <div id="fields-socialaccount_SocialAccount" class="fields-container hidden">
+            
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> socialtoken [null]
+                            </span>
+                            <span class="field-type foreign">ManyToOneRel</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-key"></i> id [unique, blank]
+                            </span>
+                            <span class="field-type primary">AutoField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> user
+                            </span>
+                            <span class="field-type foreign">ForeignKey</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> provider [max=200]
+                            </span>
+                            <span class="field-type foreign">CharField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> uid [max=191]
+                            </span>
+                            <span class="field-type foreign">CharField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> last_login [blank]
+                            </span>
+                            <span class="field-type foreign">DateTimeField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> date_joined [blank]
+                            </span>
+                            <span class="field-type foreign">DateTimeField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> extra_data
+                            </span>
+                            <span class="field-type foreign">JSONField</span>
+                        </div>
+                    <div class="relationships"><strong><i class="fas fa-project-diagram"></i> Relationships:</strong><div class="relationship">• socialtoken (ManyToOneRel) → SocialToken</div><div class="relationship">• user (ForeignKey) → User</div></div>
+                    </div>
+                </div>
+            
+                <div class="model-card" data-model="socialtoken">
+                    <div class="model-name">
+                        <i class="fas fa-table"></i>
+                        SocialToken
+                        <span class="table-badge">socialaccount_socialtoken</span>
+                        <button class="toggle-btn" id="btn-socialaccount_SocialToken" onclick="toggleFields('socialaccount_SocialToken')">
+                            <i class="fas fa-eye"></i> Show
+                        </button>
+                    </div>
+                    
+                    <div id="fields-socialaccount_SocialToken" class="fields-container hidden">
+            
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-key"></i> id [unique, blank]
+                            </span>
+                            <span class="field-type primary">AutoField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> app [null, blank]
+                            </span>
+                            <span class="field-type foreign">ForeignKey</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> account
+                            </span>
+                            <span class="field-type foreign">ForeignKey</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> token
+                            </span>
+                            <span class="field-type foreign">TextField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> token_secret [blank]
+                            </span>
+                            <span class="field-type foreign">TextField</span>
+                        </div>
+                    
+                        <div class="field-item">
+                            <span class="field-name">
+                                <i class="fas fa-link"></i> expires_at [null, blank]
+                            </span>
+                            <span class="field-type foreign">DateTimeField</span>
+                        </div>
+                    <div class="relationships"><strong><i class="fas fa-project-diagram"></i> Relationships:</strong><div class="relationship">• app (ForeignKey) → SocialApp</div><div class="relationship">• account (ForeignKey) → SocialAccount</div></div>
+                    </div>
+                </div>
+            
+            </div>
+        </div>
+        
+    </div>
+
+    <script>
+        function toggleFields(modelId) {
+            const fieldsDiv = document.getElementById('fields-' + modelId);
+            const btn = document.getElementById('btn-' + modelId);
+            
+            if (fieldsDiv.classList.contains('hidden')) {
+                fieldsDiv.classList.remove('hidden');
+                btn.innerHTML = '<i class="fas fa-eye-slash"></i> Hide';
+            } else {
+                fieldsDiv.classList.add('hidden');
+                btn.innerHTML = '<i class="fas fa-eye"></i> Show';
+            }
+        }
+
+        function searchModels(searchTerm) {
+            const modelCards = document.querySelectorAll('.model-card');
+            const appSections = document.querySelectorAll('.app-section');
+            searchTerm = searchTerm.toLowerCase();
+            
+            modelCards.forEach(card => {
+                const modelName = card.querySelector('.model-name').textContent.toLowerCase();
+                if (modelName.includes(searchTerm) || searchTerm === '') {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+            
+            // Hide empty app sections
+            appSections.forEach(section => {
+                const visibleCards = section.querySelectorAll('.model-card[style="display: block"], .model-card:not([style*="none"])');
+                if ((searchTerm && visibleCards.length === 0) || (searchTerm && Array.from(visibleCards).every(card => card.style.display === 'none'))) {
+                    section.style.display = 'none';
+                } else {
+                    section.style.display = 'block';
+                }
+            });
+        }
+
+        // Auto-expand first few models
+        document.addEventListener('DOMContentLoaded', function() {
+            const firstFewBtns = document.querySelectorAll('.toggle-btn');
+            for (let i = 0; i < Math.min(3, firstFewBtns.length); i++) {
+                firstFewBtns[i].click();
+            }
+        });
+    </script>
+</body>
+</html>

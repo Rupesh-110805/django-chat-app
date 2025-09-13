@@ -1,0 +1,1938 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Django System Architecture - Interactive Connection Graph</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: rgba(255,255,255,0.95);
+            padding: 25px;
+            backdrop-filter: blur(15px);
+            box-shadow: 0 4px 30px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 2.2em;
+        }
+        
+        .system-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .system-card {
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .system-card h3 {
+            margin-bottom: 10px;
+        }
+        
+        .auth-card { border-left: 5px solid #e74c3c; }
+        .session-card { border-left: 5px solid #3498db; }
+        .social-card { border-left: 5px solid #f39c12; }
+        .admin-card { border-left: 5px solid #9b59b6; }
+        .chat-card { border-left: 5px solid #27ae60; }
+        
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            background: rgba(255,255,255,0.1);
+        }
+        
+        #graphCanvas {
+            display: block;
+            cursor: move;
+        }
+        
+        .controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .control-btn {
+            background: rgba(255,255,255,0.95);
+            border: none;
+            padding: 12px 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .control-btn:hover {
+            background: white;
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+        
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255,255,255,0.98);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 6px 30px rgba(0,0,0,0.3);
+            max-width: 400px;
+            display: none;
+        }
+        
+        .info-panel.show { display: block; }
+        
+        .connection-flow {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.95);
+            padding: 20px;
+            border-radius: 12px;
+            font-size: 14px;
+        }
+        
+        .flow-step {
+            display: inline-block;
+            background: #3498db;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            margin: 5px;
+            font-weight: bold;
+        }
+        
+        .flow-arrow { font-size: 20px; color: #e74c3c; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏗️ Django System Architecture</h1>
+        <p style="text-align: center; color: #666; font-size: 16px;">
+            How Auth, Admin, Sessions, and Chat systems are interconnected
+        </p>
+        
+        <div class="system-overview">
+            <div class="system-card auth-card">
+                <h3>🔑 CORE AUTH</h3>
+                <p>Central Hub - Every user action starts here</p>
+                <small>auth_user, auth_group, auth_permission</small>
+            </div>
+            <div class="system-card session-card">
+                <h3>🎫 SESSIONS</h3>
+                <p>Login State Management</p>
+                <small>Keeps users logged in across requests</small>
+            </div>
+            <div class="system-card social-card">
+                <h3>🔗 SOCIAL AUTH</h3>
+                <p>Google OAuth Integration</p>
+                <small>socialaccount, account management</small>
+            </div>
+            <div class="system-card admin-card">
+                <h3>⚙️ ADMIN SYSTEM</h3>
+                <p>Management Interface</p>
+                <small>admin_log, contenttypes</small>
+            </div>
+            <div class="system-card chat-card">
+                <h3>💬 CHAT APP</h3>
+                <p>Your Main Application</p>
+                <small>rooms, messages, profiles</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="canvas-container">
+        <canvas id="graphCanvas"></canvas>
+        
+        <div class="controls">
+            <button class="control-btn" onclick="resetView()">🔄 Reset View</button>
+            <button class="control-btn" onclick="focusOnAuth()">🔍 Focus Auth</button>
+            <button class="control-btn" onclick="togglePhysics()">⚡ Physics</button>
+            <button class="control-btn" onclick="exportGraph()">💾 Export</button>
+        </div>
+        
+        <div class="info-panel" id="infoPanel">
+            <h3 id="nodeTitle">System Information</h3>
+            <div id="nodeDetails"></div>
+            <button onclick="closeInfo()" style="margin-top: 15px; padding: 8px 15px; border: none; border-radius: 8px; background: #e74c3c; color: white; cursor: pointer;">Close</button>
+        </div>
+        
+        <div class="connection-flow">
+            <strong>📱 User Journey Flow:</strong>
+            <span class="flow-step">1. Login (Sessions)</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-step">2. Auth Check (auth_user)</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-step">3. Chat Room (chatapp)</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-step">4. Send Message</span>
+            <span class="flow-arrow">→</span>
+            <span class="flow-step">5. Admin Logging</span>
+        </div>
+    </div>
+
+    <script>
+        // System colors with enhanced meaning
+        const systemColors = {
+            'auth': '#e74c3c',           // 🔴 Red - CRITICAL CENTRAL HUB
+            'sessions': '#3498db',       // 🔵 Blue - SESSION MANAGEMENT
+            'socialaccount': '#f39c12',  // 🟠 Orange - SOCIAL AUTH
+            'account': '#e67e22',        // 🟠 Dark Orange - ACCOUNT MGMT
+            'admin': '#9b59b6',          // 🟣 Purple - ADMIN SYSTEM
+            'contenttypes': '#8e44ad',   // 🟣 Dark Purple - CONTENT TYPES
+            'chatapp': '#27ae60',        // 🟢 Green - YOUR MAIN APP
+            'sites': '#95a5a6',          // ⚪ Gray - SITES FRAMEWORK
+            'django': '#34495e'          // ⚫ Dark Gray - DJANGO CORE
+        };
+        
+        // System importance (affects node size and positioning)
+        const systemImportance = {
+            'auth': 5,        // 🎯 MAXIMUM - Everything connects here
+            'chatapp': 4,     // 🎯 High - Your main application
+            'sessions': 3,    // 🎯 High - Required for all user actions
+            'socialaccount': 2, // 🎯 Medium - Social login
+            'account': 2,     // 🎯 Medium - Account management
+            'admin': 2,       // 🎯 Medium - Management interface
+            'contenttypes': 1,// 🎯 Low - Supporting system
+            'sites': 1,       // 🎯 Low - Framework component
+            'django': 1       // 🎯 Low - Core framework
+        };
+
+        const canvas = document.getElementById('graphCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Data from Django analysis
+        const models = [
+        {
+                "name": "chatapp_userblock",
+                "app": "chatapp",
+                "model_class": "UserBlock",
+                "fields": [
+                        {
+                                "name": "id",
+                                "type": "BigAutoField",
+                                "null": false
+                        },
+                        {
+                                "name": "user",
+                                "type": "ForeignKey",
+                                "null": false
+                        },
+                        {
+                                "name": "blocked_by",
+                                "type": "ForeignKey",
+                                "null": false
+                        },
+                        {
+                                "name": "block_type",
+                                "type": "CharField",
+                                "null": false
+                        },
+                        {
+                                "name": "reason",
+                                "type": "TextField",
+                                "null": false
+                        },
+                        {
+                                "name": "blocked_at",
+                                "type": "DateTimeField",
+                                "null": false
+                        },
+                        {
+                                "name": "blocked_until",
+                                "type": "DateTimeField",
+                                "null": true
+                        },
+                        {
+                                "name": "is_active",
+                                "type": "BooleanField",
+                                "null": false
+                        }
+                ]
+        },
+        {
+                "name": "chatapp_chatroom",
+                "app": "chatapp",
+                "model_class": "ChatRoom",
+                "fields": [
+                        {
+                                "name": "privateroommembership",
+                                "type": "ForeignKey",
+                                "null": true
+                        },
+                        {
+                                "name": "userpresence",
+                                "type": "ForeignKey",
+                                "null": true
+                        },
+                        {
+                                "name": "chatmessage",
+                                "type": "ForeignKey",
+                                "null": true
+                        },
+                        {
+                                "name": "id",
+                                "type": "BigAutoField",
+                                "null": false
+                        },
+                        {
+                                "name": "name",
+                                "type": "CharField",
+                                "null": false
+                        },
+                        {
+                                "name": "slug",
+                                "type": "SlugField",
+                                "null": false
+                        },
+                        {
+                                "name": "room_type",
+                                "type": "CharField",
+                                "null": false
+                        },
+                        {
+                                "name": "access_code",
+                                "type": "CharField",
+                                "null": true
+                        },
+                        {
+                                "name": "owner",
+                                "type": "ForeignKey",
+                                "null": false
+                        },
+                        {
+                                "name": "created_at",
+                                "type": "DateTimeField",
+                                "null": false
+                        }
+                ]
+        },
+        {
+                "name": "chatapp_privateroommembership",
+                "app": "chatapp",
+                "model_class": "PrivateRoomMembership",
+                "fields": [
+                        {
+                                "name": "id",
+                                "type": "BigAutoField",
+                                "null": false
+                        },
+                        {
+                                "name": "user",
+                                "type": "ForeignKey",
+                                "null": false
+                        },
+                        {
+                                "name": "room",
+                                "type": "ForeignKey",
+                                "null": false
+                        },
+                        {
+                                "name": "joined_at",
+                                "type": "DateTimeField",
+                                "null": false
+                        }
+                ]
+        },
+        {
+                "name": "chatapp_userpresence",
+                "app": "chatapp",
+                "model_class": "UserPresence",
+                "fields": [
+                        {
+                                "name": "id",
+                                "type": "BigAutoField",
+                                "null": false
+                        },
+                        {
+                                "name": "user",
+                                "type": "ForeignKey",
+                                "null": false
+                        },
+                        {
+                                "name": "room",
+                                "type": "ForeignKey",
+                                "null": false
+                        },
+                        {
+                                "name": "last_seen",
+                                "type": "DateTimeField",
+                                "null": false
+                        },
+                        {
+                                "name": "is_online",
+                                "type": "BooleanField",
+                                "null": false
+                        }
+                ]
+        },
+        {
+                "name": "chatapp_chatmessage",
+                "app": "chatapp",
+                "model_class": "ChatMessage",
+                "fields": [
+                        {
+                                "name": "reactions",
+                                "type": "ForeignKey",
+                                "null": true
+                        },
+                        {
+                                "name": "id",
+                                "type": "BigAutoField",
+                                "null": false
+                        },
+                        {
+                                "name": "user",
+                                "type": "ForeignKey",
+                                "null": false
+                        },
+                        {
+                                "name": "room",
+                                "type": "ForeignKey",
+                                "null": false
+                        },
+                        {
+                                "name": "message_content",
+                                "type": "TextField",
+                                "null": false
+                        },
+                        {
+                                "name": "message_type",
+                                "type": "CharField",
+                                "null": false
+                        },
+                        {
+                                "name": "file",
+                                "type": "FileField",
+                                "null": true
+                        },
+                        {
+                                "name": "file_name",
+                                "type": "CharField",
+                                "null": false
+                        },
+                        {
+                                "name": "file_size",
+                                "type": "IntegerField",
+                                "null": false
+                        },
+                        {
+                                "name": "date",
+                                "type": "DateTimeField",
+                                "null": false
+                        }
+                ]
+        },
+        {
+                "name": "chatapp_messagereaction",
+                "app": "chatapp",
+                "model_class": "MessageReaction",
+                "fields": [
+                        {
+                                "name": "id",
+                                "type": "BigAutoField",
+                                "null": false
+                        },
+                        {
+                                "name": "message",
+                                "type": "ForeignKey",
+                                "null": false
+                        },
+                        {
+                                "name": "user",
+                                "type": "ForeignKey",
+                                "null": false
+                        },
+                        {
+                                "name": "emoji",
+                                "type": "CharField",
+                                "null": false
+                        },
+                        {
+                                "name": "created_at",
+                                "type": "DateTimeField",
+                                "null": false
+                        }
+                ]
+        },
+        {
+                "name": "django_admin_log",
+                "app": "admin",
+                "model_class": "LogEntry",
+                "fields": [
+                        {
+                                "name": "id",
+                                "type": "AutoField",
+                                "null": false
+                        },
+                        {
+                                "name": "action_time",
+                                "type": "DateTimeField",
+                                "null": false
+                        },
+                        {
+                                "name": "user",
+                                "type": "ForeignKey",
+                                "null": false
+                        },
+                        {
+                                "name": "content_type",
+                                "type": "ForeignKey",
+                                "null": true
+                        },
+                        {
+                                "name": "object_id",
+                                "type": "TextField",
+                                "null": true
+                        },
+                        {
+                                "name": "object_repr",
+                                "type": "CharField",
+                                "null": false
+                        },
+                        {
+                                "name": "action_flag",
+                                "type": "PositiveSmallIntegerField",
+                                "null": false
+                        },
+                        {
+                                "name": "change_message",
+                                "type": "TextField",
+                                "null": false
+                        }
+                ]
+        },
+        {
+                "name": "auth_permission",
+                "app": "auth",
+                "model_class": "Permission",
+                "fields": [
+                        {
+                                "name": "group",
+                                "type": "ManyToManyField",
+                                "null": true
+                        },
+                        {
+                                "name": "user",
+                                "type": "ManyToManyField",
+                                "null": true
+                        },
+                        {
+                                "name": "id",
+                                "type": "AutoField",
+                                "null": false
+                        },
+                        {
+                                "name": "name",
+                                "type": "CharField",
+                                "null": false
+                        },
+                        {
+                                "name": "content_type",
+                                "type": "ForeignKey",
+                                "null": false
+                        },
+                        {
+                                "name": "codename",
+                                "type": "CharField",
+                                "null": false
+                        }
+                ]
+        },
+        {
+                "name": "auth_group",
+                "app": "auth",
+                "model_class": "Group",
+                "fields": [
+                        {
+                                "name": "user",
+                                "type": "ManyToManyField",
+                                "null": true
+                        },
+                        {
+                                "name": "id",
+                                "type": "AutoField",
+                                "null": false
+                        },
+                        {
+                                "name": "name",
+                                "type": "CharField",
+                                "null": false
+                        },
+                        {
+                                "name": "permissions",
+                                "type": "ManyToManyField",
+                                "null": false
+                        }
+                ]
+        },
+        {
+                "name": "auth_user",
+                "app": "auth",
+                "model_class": "User",
+                "fields": [
+                        {
+                                "name": "blocks",
+                                "type": "ForeignKey",
+                                "null": true
+                        },
+                        {
+                                "name": "blocked_users",
+                                "type": "ForeignKey",
+                                "null": true
+                        },
+                        {
+                                "name": "owned_rooms",
+                                "type": "ForeignKey",
+                                "null": true
+                        },
+                        {
+                                "name": "privateroommembership",
+                                "type": "ForeignKey",
+                                "null": true
+                        },
+                        {
+                                "name": "userpresence",
+                                "type": "ForeignKey",
+                                "null": true
+                        },
+                        {
+                                "name": "chatmessage",
+                                "type": "ForeignKey",
+                                "null": true
+                        },
+                        {
+                                "name": "messagereaction",
+                                "type": "ForeignKey",
+                                "null": true
+                        },
+                        {
+                                "name": "logentry",
+                                "type": "ForeignKey",
+                                "null": true
+                        },
+                        {
+                                "name": "emailaddress",
+                                "type": "ForeignKey",
+                                "null": true
+                        },
+                        {
+                                "name": "socialaccount",
+                                "type": "ForeignKey",
+                                "null": true
+                        },
+                        {
+                                "name": "id",
+                                "type": "AutoField",
+                                "null": false
+                        },
+                        {
+                                "name": "password",
+                                "type": "CharField",
+                                "null": false
+                        },
+                        {
+                                "name": "last_login",
+                                "type": "DateTimeField",
+                                "null": true
+                        },
+                        {
+                                "name": "is_superuser",
+                                "type": "BooleanField",
+                                "null": false
+                        },
+                        {
+                                "name": "username",
+                                "type": "CharField",
+                                "null": false
+                        },
+                        {
+                                "name": "first_name",
+                                "type": "CharField",
+                                "null": false
+                        },
+                        {
+                                "name": "last_name",
+                                "type": "CharField",
+                                "null": false
+                        },
+                        {
+                                "name": "email",
+                                "type": "CharField",
+                                "null": false
+                        },
+                        {
+                                "name": "is_staff",
+                                "type": "BooleanField",
+                                "null": false
+                        },
+                        {
+                                "name": "is_active",
+                                "type": "BooleanField",
+                                "null": false
+                        },
+                        {
+                                "name": "date_joined",
+                                "type": "DateTimeField",
+                                "null": false
+                        },
+                        {
+                                "name": "groups",
+                                "type": "ManyToManyField",
+                                "null": false
+                        },
+                        {
+                                "name": "user_permissions",
+                                "type": "ManyToManyField",
+                                "null": false
+                        }
+                ]
+        },
+        {
+                "name": "django_content_type",
+                "app": "contenttypes",
+                "model_class": "ContentType",
+                "fields": [
+                        {
+                                "name": "logentry",
+                                "type": "ForeignKey",
+                                "null": true
+                        },
+                        {
+                                "name": "permission",
+                                "type": "ForeignKey",
+                                "null": true
+                        },
+                        {
+                                "name": "id",
+                                "type": "AutoField",
+                                "null": false
+                        },
+                        {
+                                "name": "app_label",
+                                "type": "CharField",
+                                "null": false
+                        },
+                        {
+                                "name": "model",
+                                "type": "CharField",
+                                "null": false
+                        }
+                ]
+        },
+        {
+                "name": "django_session",
+                "app": "sessions",
+                "model_class": "Session",
+                "fields": [
+                        {
+                                "name": "session_key",
+                                "type": "CharField",
+                                "null": false
+                        },
+                        {
+                                "name": "session_data",
+                                "type": "TextField",
+                                "null": false
+                        },
+                        {
+                                "name": "expire_date",
+                                "type": "DateTimeField",
+                                "null": false
+                        }
+                ]
+        },
+        {
+                "name": "django_site",
+                "app": "sites",
+                "model_class": "Site",
+                "fields": [
+                        {
+                                "name": "socialapp",
+                                "type": "ManyToManyField",
+                                "null": true
+                        },
+                        {
+                                "name": "id",
+                                "type": "AutoField",
+                                "null": false
+                        },
+                        {
+                                "name": "domain",
+                                "type": "CharField",
+                                "null": false
+                        },
+                        {
+                                "name": "name",
+                                "type": "CharField",
+                                "null": false
+                        }
+                ]
+        },
+        {
+                "name": "account_emailaddress",
+                "app": "account",
+                "model_class": "EmailAddress",
+                "fields": [
+                        {
+                                "name": "emailconfirmation",
+                                "type": "ForeignKey",
+                                "null": true
+                        },
+                        {
+                                "name": "id",
+                                "type": "AutoField",
+                                "null": false
+                        },
+                        {
+                                "name": "user",
+                                "type": "ForeignKey",
+                                "null": false
+                        },
+                        {
+                                "name": "email",
+                                "type": "CharField",
+                                "null": false
+                        },
+                        {
+                                "name": "verified",
+                                "type": "BooleanField",
+                                "null": false
+                        },
+                        {
+                                "name": "primary",
+                                "type": "BooleanField",
+                                "null": false
+                        }
+                ]
+        },
+        {
+                "name": "account_emailconfirmation",
+                "app": "account",
+                "model_class": "EmailConfirmation",
+                "fields": [
+                        {
+                                "name": "id",
+                                "type": "AutoField",
+                                "null": false
+                        },
+                        {
+                                "name": "email_address",
+                                "type": "ForeignKey",
+                                "null": false
+                        },
+                        {
+                                "name": "created",
+                                "type": "DateTimeField",
+                                "null": false
+                        },
+                        {
+                                "name": "sent",
+                                "type": "DateTimeField",
+                                "null": true
+                        },
+                        {
+                                "name": "key",
+                                "type": "CharField",
+                                "null": false
+                        }
+                ]
+        },
+        {
+                "name": "socialaccount_socialapp",
+                "app": "socialaccount",
+                "model_class": "SocialApp",
+                "fields": [
+                        {
+                                "name": "socialtoken",
+                                "type": "ForeignKey",
+                                "null": true
+                        },
+                        {
+                                "name": "id",
+                                "type": "AutoField",
+                                "null": false
+                        },
+                        {
+                                "name": "provider",
+                                "type": "CharField",
+                                "null": false
+                        },
+                        {
+                                "name": "provider_id",
+                                "type": "CharField",
+                                "null": false
+                        },
+                        {
+                                "name": "name",
+                                "type": "CharField",
+                                "null": false
+                        },
+                        {
+                                "name": "client_id",
+                                "type": "CharField",
+                                "null": false
+                        },
+                        {
+                                "name": "secret",
+                                "type": "CharField",
+                                "null": false
+                        },
+                        {
+                                "name": "key",
+                                "type": "CharField",
+                                "null": false
+                        },
+                        {
+                                "name": "settings",
+                                "type": "JSONField",
+                                "null": false
+                        },
+                        {
+                                "name": "sites",
+                                "type": "ManyToManyField",
+                                "null": false
+                        }
+                ]
+        },
+        {
+                "name": "socialaccount_socialaccount",
+                "app": "socialaccount",
+                "model_class": "SocialAccount",
+                "fields": [
+                        {
+                                "name": "socialtoken",
+                                "type": "ForeignKey",
+                                "null": true
+                        },
+                        {
+                                "name": "id",
+                                "type": "AutoField",
+                                "null": false
+                        },
+                        {
+                                "name": "user",
+                                "type": "ForeignKey",
+                                "null": false
+                        },
+                        {
+                                "name": "provider",
+                                "type": "CharField",
+                                "null": false
+                        },
+                        {
+                                "name": "uid",
+                                "type": "CharField",
+                                "null": false
+                        },
+                        {
+                                "name": "last_login",
+                                "type": "DateTimeField",
+                                "null": false
+                        },
+                        {
+                                "name": "date_joined",
+                                "type": "DateTimeField",
+                                "null": false
+                        },
+                        {
+                                "name": "extra_data",
+                                "type": "JSONField",
+                                "null": false
+                        }
+                ]
+        },
+        {
+                "name": "socialaccount_socialtoken",
+                "app": "socialaccount",
+                "model_class": "SocialToken",
+                "fields": [
+                        {
+                                "name": "id",
+                                "type": "AutoField",
+                                "null": false
+                        },
+                        {
+                                "name": "app",
+                                "type": "ForeignKey",
+                                "null": true
+                        },
+                        {
+                                "name": "account",
+                                "type": "ForeignKey",
+                                "null": false
+                        },
+                        {
+                                "name": "token",
+                                "type": "TextField",
+                                "null": false
+                        },
+                        {
+                                "name": "token_secret",
+                                "type": "TextField",
+                                "null": false
+                        },
+                        {
+                                "name": "expires_at",
+                                "type": "DateTimeField",
+                                "null": true
+                        }
+                ]
+        }
+];
+        const relationships = [
+        {
+                "from_model": "chatapp_userblock",
+                "to_model": "auth_user",
+                "field_name": "user",
+                "relationship_type": "ForeignKey",
+                "from_app": "chatapp",
+                "to_app": "auth"
+        },
+        {
+                "from_model": "chatapp_userblock",
+                "to_model": "auth_user",
+                "field_name": "blocked_by",
+                "relationship_type": "ForeignKey",
+                "from_app": "chatapp",
+                "to_app": "auth"
+        },
+        {
+                "from_model": "chatapp_chatroom",
+                "to_model": "chatapp_privateroommembership",
+                "field_name": "privateroommembership",
+                "relationship_type": "OneToMany",
+                "from_app": "chatapp",
+                "to_app": "chatapp"
+        },
+        {
+                "from_model": "chatapp_chatroom",
+                "to_model": "chatapp_userpresence",
+                "field_name": "userpresence",
+                "relationship_type": "OneToMany",
+                "from_app": "chatapp",
+                "to_app": "chatapp"
+        },
+        {
+                "from_model": "chatapp_chatroom",
+                "to_model": "chatapp_chatmessage",
+                "field_name": "chatmessage",
+                "relationship_type": "OneToMany",
+                "from_app": "chatapp",
+                "to_app": "chatapp"
+        },
+        {
+                "from_model": "chatapp_chatroom",
+                "to_model": "auth_user",
+                "field_name": "owner",
+                "relationship_type": "ForeignKey",
+                "from_app": "chatapp",
+                "to_app": "auth"
+        },
+        {
+                "from_model": "chatapp_privateroommembership",
+                "to_model": "auth_user",
+                "field_name": "user",
+                "relationship_type": "ForeignKey",
+                "from_app": "chatapp",
+                "to_app": "auth"
+        },
+        {
+                "from_model": "chatapp_privateroommembership",
+                "to_model": "chatapp_chatroom",
+                "field_name": "room",
+                "relationship_type": "ForeignKey",
+                "from_app": "chatapp",
+                "to_app": "chatapp"
+        },
+        {
+                "from_model": "chatapp_userpresence",
+                "to_model": "auth_user",
+                "field_name": "user",
+                "relationship_type": "ForeignKey",
+                "from_app": "chatapp",
+                "to_app": "auth"
+        },
+        {
+                "from_model": "chatapp_userpresence",
+                "to_model": "chatapp_chatroom",
+                "field_name": "room",
+                "relationship_type": "ForeignKey",
+                "from_app": "chatapp",
+                "to_app": "chatapp"
+        },
+        {
+                "from_model": "chatapp_chatmessage",
+                "to_model": "chatapp_messagereaction",
+                "field_name": "reactions",
+                "relationship_type": "OneToMany",
+                "from_app": "chatapp",
+                "to_app": "chatapp"
+        },
+        {
+                "from_model": "chatapp_chatmessage",
+                "to_model": "auth_user",
+                "field_name": "user",
+                "relationship_type": "ForeignKey",
+                "from_app": "chatapp",
+                "to_app": "auth"
+        },
+        {
+                "from_model": "chatapp_chatmessage",
+                "to_model": "chatapp_chatroom",
+                "field_name": "room",
+                "relationship_type": "ForeignKey",
+                "from_app": "chatapp",
+                "to_app": "chatapp"
+        },
+        {
+                "from_model": "chatapp_messagereaction",
+                "to_model": "chatapp_chatmessage",
+                "field_name": "message",
+                "relationship_type": "ForeignKey",
+                "from_app": "chatapp",
+                "to_app": "chatapp"
+        },
+        {
+                "from_model": "chatapp_messagereaction",
+                "to_model": "auth_user",
+                "field_name": "user",
+                "relationship_type": "ForeignKey",
+                "from_app": "chatapp",
+                "to_app": "auth"
+        },
+        {
+                "from_model": "django_admin_log",
+                "to_model": "auth_user",
+                "field_name": "user",
+                "relationship_type": "ForeignKey",
+                "from_app": "admin",
+                "to_app": "auth"
+        },
+        {
+                "from_model": "django_admin_log",
+                "to_model": "django_content_type",
+                "field_name": "content_type",
+                "relationship_type": "ForeignKey",
+                "from_app": "admin",
+                "to_app": "contenttypes"
+        },
+        {
+                "from_model": "auth_permission",
+                "to_model": "auth_group",
+                "field_name": "group",
+                "relationship_type": "ManyToMany",
+                "from_app": "auth",
+                "to_app": "auth"
+        },
+        {
+                "from_model": "auth_permission",
+                "to_model": "auth_user",
+                "field_name": "user",
+                "relationship_type": "ManyToMany",
+                "from_app": "auth",
+                "to_app": "auth"
+        },
+        {
+                "from_model": "auth_permission",
+                "to_model": "django_content_type",
+                "field_name": "content_type",
+                "relationship_type": "ForeignKey",
+                "from_app": "auth",
+                "to_app": "contenttypes"
+        },
+        {
+                "from_model": "auth_group",
+                "to_model": "auth_user",
+                "field_name": "user",
+                "relationship_type": "ManyToMany",
+                "from_app": "auth",
+                "to_app": "auth"
+        },
+        {
+                "from_model": "auth_group",
+                "to_model": "auth_permission",
+                "field_name": "permissions",
+                "relationship_type": "ManyToMany",
+                "from_app": "auth",
+                "to_app": "auth"
+        },
+        {
+                "from_model": "auth_user",
+                "to_model": "chatapp_userblock",
+                "field_name": "blocks",
+                "relationship_type": "OneToMany",
+                "from_app": "auth",
+                "to_app": "chatapp"
+        },
+        {
+                "from_model": "auth_user",
+                "to_model": "chatapp_userblock",
+                "field_name": "blocked_users",
+                "relationship_type": "OneToMany",
+                "from_app": "auth",
+                "to_app": "chatapp"
+        },
+        {
+                "from_model": "auth_user",
+                "to_model": "chatapp_chatroom",
+                "field_name": "owned_rooms",
+                "relationship_type": "OneToMany",
+                "from_app": "auth",
+                "to_app": "chatapp"
+        },
+        {
+                "from_model": "auth_user",
+                "to_model": "chatapp_privateroommembership",
+                "field_name": "privateroommembership",
+                "relationship_type": "OneToMany",
+                "from_app": "auth",
+                "to_app": "chatapp"
+        },
+        {
+                "from_model": "auth_user",
+                "to_model": "chatapp_userpresence",
+                "field_name": "userpresence",
+                "relationship_type": "OneToMany",
+                "from_app": "auth",
+                "to_app": "chatapp"
+        },
+        {
+                "from_model": "auth_user",
+                "to_model": "chatapp_chatmessage",
+                "field_name": "chatmessage",
+                "relationship_type": "OneToMany",
+                "from_app": "auth",
+                "to_app": "chatapp"
+        },
+        {
+                "from_model": "auth_user",
+                "to_model": "chatapp_messagereaction",
+                "field_name": "messagereaction",
+                "relationship_type": "OneToMany",
+                "from_app": "auth",
+                "to_app": "chatapp"
+        },
+        {
+                "from_model": "auth_user",
+                "to_model": "django_admin_log",
+                "field_name": "logentry",
+                "relationship_type": "OneToMany",
+                "from_app": "auth",
+                "to_app": "admin"
+        },
+        {
+                "from_model": "auth_user",
+                "to_model": "account_emailaddress",
+                "field_name": "emailaddress",
+                "relationship_type": "OneToMany",
+                "from_app": "auth",
+                "to_app": "account"
+        },
+        {
+                "from_model": "auth_user",
+                "to_model": "socialaccount_socialaccount",
+                "field_name": "socialaccount",
+                "relationship_type": "OneToMany",
+                "from_app": "auth",
+                "to_app": "socialaccount"
+        },
+        {
+                "from_model": "auth_user",
+                "to_model": "auth_group",
+                "field_name": "groups",
+                "relationship_type": "ManyToMany",
+                "from_app": "auth",
+                "to_app": "auth"
+        },
+        {
+                "from_model": "auth_user",
+                "to_model": "auth_permission",
+                "field_name": "user_permissions",
+                "relationship_type": "ManyToMany",
+                "from_app": "auth",
+                "to_app": "auth"
+        },
+        {
+                "from_model": "django_content_type",
+                "to_model": "django_admin_log",
+                "field_name": "logentry",
+                "relationship_type": "OneToMany",
+                "from_app": "contenttypes",
+                "to_app": "admin"
+        },
+        {
+                "from_model": "django_content_type",
+                "to_model": "auth_permission",
+                "field_name": "permission",
+                "relationship_type": "OneToMany",
+                "from_app": "contenttypes",
+                "to_app": "auth"
+        },
+        {
+                "from_model": "django_site",
+                "to_model": "socialaccount_socialapp",
+                "field_name": "socialapp",
+                "relationship_type": "ManyToMany",
+                "from_app": "sites",
+                "to_app": "socialaccount"
+        },
+        {
+                "from_model": "account_emailaddress",
+                "to_model": "account_emailconfirmation",
+                "field_name": "emailconfirmation",
+                "relationship_type": "OneToMany",
+                "from_app": "account",
+                "to_app": "account"
+        },
+        {
+                "from_model": "account_emailaddress",
+                "to_model": "auth_user",
+                "field_name": "user",
+                "relationship_type": "ForeignKey",
+                "from_app": "account",
+                "to_app": "auth"
+        },
+        {
+                "from_model": "account_emailconfirmation",
+                "to_model": "account_emailaddress",
+                "field_name": "email_address",
+                "relationship_type": "ForeignKey",
+                "from_app": "account",
+                "to_app": "account"
+        },
+        {
+                "from_model": "socialaccount_socialapp",
+                "to_model": "socialaccount_socialtoken",
+                "field_name": "socialtoken",
+                "relationship_type": "OneToMany",
+                "from_app": "socialaccount",
+                "to_app": "socialaccount"
+        },
+        {
+                "from_model": "socialaccount_socialapp",
+                "to_model": "django_site",
+                "field_name": "sites",
+                "relationship_type": "ManyToMany",
+                "from_app": "socialaccount",
+                "to_app": "sites"
+        },
+        {
+                "from_model": "socialaccount_socialaccount",
+                "to_model": "socialaccount_socialtoken",
+                "field_name": "socialtoken",
+                "relationship_type": "OneToMany",
+                "from_app": "socialaccount",
+                "to_app": "socialaccount"
+        },
+        {
+                "from_model": "socialaccount_socialaccount",
+                "to_model": "auth_user",
+                "field_name": "user",
+                "relationship_type": "ForeignKey",
+                "from_app": "socialaccount",
+                "to_app": "auth"
+        },
+        {
+                "from_model": "socialaccount_socialtoken",
+                "to_model": "socialaccount_socialapp",
+                "field_name": "app",
+                "relationship_type": "ForeignKey",
+                "from_app": "socialaccount",
+                "to_app": "socialaccount"
+        },
+        {
+                "from_model": "socialaccount_socialtoken",
+                "to_model": "socialaccount_socialaccount",
+                "field_name": "account",
+                "relationship_type": "ForeignKey",
+                "from_app": "socialaccount",
+                "to_app": "socialaccount"
+        }
+];
+        
+        let nodes = [];
+        let edges = [];
+        let physicsEnabled = true;
+        let scale = 1;
+        let offsetX = 0;
+        let offsetY = 0;
+        
+        function initializeGraph() {
+            resizeCanvas();
+            
+            // Create nodes with intelligent system-based clustering
+            const systemClusters = {
+                'auth': { x: 0, y: 0, radius: 200 },              // 🎯 CENTER
+                'chatapp': { x: 350, y: 0, radius: 150 },         // ➡️ RIGHT (your app)
+                'sessions': { x: -350, y: 0, radius: 100 },       // ⬅️ LEFT (session mgmt)
+                'admin': { x: 0, y: -300, radius: 120 },          // ⬆️ TOP (admin system)
+                'socialaccount': { x: 250, y: -250, radius: 90 }, // ↗️ TOP-RIGHT (social)
+                'account': { x: 250, y: -250, radius: 90 },       // ↗️ TOP-RIGHT (account)
+                'contenttypes': { x: -200, y: -250, radius: 70 }, // ↖️ TOP-LEFT (content)
+                'sites': { x: -250, y: 200, radius: 50 },         // ↙️ BOTTOM-LEFT (sites)
+                'django': { x: 0, y: 300, radius: 80 }            // ⬇️ BOTTOM (django core)
+            };
+            
+            // Create nodes with enhanced positioning
+            models.forEach((model, index) => {
+                const app = model.app;
+                const cluster = systemClusters[app] || systemClusters['django'];
+                const importance = systemImportance[app] || 1;
+                
+                // Intelligent positioning within cluster
+                const angle = (index * 2.5) % (Math.PI * 2);
+                const distance = cluster.radius * (0.2 + Math.random() * 0.6);
+                
+                const node = {
+                    id: model.name,
+                    app: app,
+                    x: cluster.x + Math.cos(angle) * distance,
+                    y: cluster.y + Math.sin(angle) * distance,
+                    vx: 0, vy: 0,
+                    radius: 10 + (importance * 4), // Size based on system importance
+                    color: systemColors[app] || '#95a5a6',
+                    model: model,
+                    connections: 0,
+                    importance: importance
+                };
+                
+                // Special handling for auth_user (make it extra prominent)
+                if (model.name.includes('auth_user')) {
+                    node.radius = 25;
+                    node.x = 0;
+                    node.y = 0;
+                }
+                
+                nodes.push(node);
+            });
+            
+            // Create edges with relationship analysis
+            relationships.forEach(rel => {
+                const fromNode = nodes.find(n => n.id === rel.from_model);
+                const toNode = nodes.find(n => n.id === rel.to_model);
+                
+                if (fromNode && toNode) {
+                    // Calculate relationship strength
+                    let strength = 1;
+                    if (rel.to_model.includes('auth_user') || rel.from_model.includes('auth_user')) {
+                        strength = 4; // 🔥 AUTH connections are MOST important
+                    } else if (rel.from_app === 'chatapp' || rel.to_app === 'chatapp') {
+                        strength = 3; // 🔥 Your app connections
+                    } else if (rel.from_app !== rel.to_app) {
+                        strength = 2; // 🔥 Cross-system connections
+                    }
+                    
+                    edges.push({
+                        from: fromNode,
+                        to: toNode,
+                        relationship: rel,
+                        strength: strength,
+                        width: 1 + strength,
+                        color: strength > 3 ? '#e74c3c' : strength > 2 ? '#f39c12' : '#34495e'
+                    });
+                    
+                    fromNode.connections++;
+                    toNode.connections++;
+                }
+            });
+            
+            centerGraph();
+            draw();
+        }
+        
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.save();
+            ctx.translate(canvas.width / 2 + offsetX, canvas.height / 2 + offsetY);
+            ctx.scale(scale, scale);
+            
+            // Draw system cluster backgrounds with labels
+            drawSystemClusters();
+            
+            // Draw relationship lines
+            edges.forEach(edge => {
+                ctx.strokeStyle = edge.color + '80'; // Semi-transparent
+                ctx.lineWidth = edge.width;
+                
+                // Curved lines for better visibility
+                const midX = (edge.from.x + edge.to.x) / 2;
+                const midY = (edge.from.y + edge.to.y) / 2;
+                const controlOffset = 20;
+                
+                ctx.beginPath();
+                ctx.moveTo(edge.from.x, edge.from.y);
+                ctx.quadraticCurveTo(
+                    midX + controlOffset, 
+                    midY - controlOffset, 
+                    edge.to.x, 
+                    edge.to.y
+                );
+                ctx.stroke();
+                
+                // Draw enhanced arrowheads for important connections
+                if (edge.strength > 2) {
+                    drawEnhancedArrow(edge);
+                }
+            });
+            
+            // Draw nodes with enhanced styling
+            nodes.forEach(node => {
+                // Node glow for important systems
+                if (node.importance > 3) {
+                    ctx.shadowColor = node.color;
+                    ctx.shadowBlur = 15;
+                }
+                
+                // Node shadow
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.beginPath();
+                ctx.arc(node.x + 3, node.y + 3, node.radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Node body
+                ctx.fillStyle = node.color;
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Node border (special for auth)
+                const borderWidth = node.id.includes('auth_user') ? 5 : 
+                                  node.importance > 3 ? 4 : 
+                                  node.importance > 2 ? 3 : 2;
+                ctx.strokeStyle = node.id.includes('auth_user') ? '#ffffff' : 'rgba(255, 255, 255, 0.9)';
+                ctx.lineWidth = borderWidth;
+                ctx.stroke();
+                
+                ctx.shadowBlur = 0; // Reset shadow
+                
+                // Connection indicators (dots around high-connection nodes)
+                if (node.connections > 4) {
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                    const dots = Math.min(node.connections, 12);
+                    for (let i = 0; i < dots; i++) {
+                        const angle = (i / dots) * Math.PI * 2;
+                        const dotX = node.x + Math.cos(angle) * (node.radius + 8);
+                        const dotY = node.y + Math.sin(angle) * (node.radius + 8);
+                        ctx.beginPath();
+                        ctx.arc(dotX, dotY, 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+                
+                // Node labels with system context
+                ctx.fillStyle = '#2c3e50';
+                ctx.font = `${node.importance > 3 ? 'bold ' : ''}${Math.max(10, 8 + node.importance)}px Arial`;
+                ctx.textAlign = 'center';
+                
+                const label = node.id.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim();
+                let displayLabel = label.length > 18 ? label.substring(0, 15) + '...' : label;
+                
+                // Special labeling for key models
+                if (node.id.includes('auth_user')) displayLabel = '👤 AUTH USER';
+                else if (node.id.includes('chatroom')) displayLabel = '💬 Chat Room';
+                else if (node.id.includes('chatmessage')) displayLabel = '📨 Messages';
+                
+                ctx.fillText(displayLabel, node.x, node.y + node.radius + 18);
+                
+                // System badge
+                ctx.font = '9px Arial';
+                ctx.fillStyle = node.color;
+                const badge = getSystemBadge(node.app);
+                ctx.fillText(badge, node.x, node.y + node.radius + 32);
+            });
+            
+            ctx.restore();
+        }
+        
+        function drawSystemClusters() {
+            const clusters = [
+                { name: '🔑 CORE AUTH', color: '#e74c3c15', x: 0, y: 0, radius: 220, textColor: '#e74c3c' },
+                { name: '💬 CHAT APP', color: '#27ae6015', x: 350, y: 0, radius: 170, textColor: '#27ae60' },
+                { name: '🎫 SESSIONS', color: '#3498db15', x: -350, y: 0, radius: 120, textColor: '#3498db' },
+                { name: '⚙️ ADMIN', color: '#9b59b615', x: 0, y: -300, radius: 140, textColor: '#9b59b6' }
+            ];
+            
+            clusters.forEach(cluster => {
+                ctx.fillStyle = cluster.color;
+                ctx.beginPath();
+                ctx.arc(cluster.x, cluster.y, cluster.radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.strokeStyle = cluster.textColor + '30';
+                ctx.lineWidth = 3;
+                ctx.setLineDash([10, 10]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                
+                // Cluster label with background
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.beginPath();
+                ctx.roundRect(cluster.x - 50, cluster.y - cluster.radius - 35, 100, 25, 12);
+                ctx.fill();
+                
+                ctx.fillStyle = cluster.textColor;
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(cluster.name, cluster.x, cluster.y - cluster.radius - 18);
+            });
+        }
+        
+        function drawEnhancedArrow(edge) {
+            const angle = Math.atan2(edge.to.y - edge.from.y, edge.to.x - edge.from.x);
+            const arrowSize = 10 + (edge.strength * 2);
+            
+            // Position at edge of target node
+            const edgeX = edge.to.x - Math.cos(angle) * edge.to.radius;
+            const edgeY = edge.to.y - Math.sin(angle) * edge.to.radius;
+            
+            ctx.fillStyle = edge.color;
+            ctx.beginPath();
+            ctx.moveTo(edgeX, edgeY);
+            ctx.lineTo(edgeX - arrowSize * Math.cos(angle - Math.PI/6), 
+                       edgeY - arrowSize * Math.sin(angle - Math.PI/6));
+            ctx.lineTo(edgeX - arrowSize * Math.cos(angle + Math.PI/6), 
+                       edgeY - arrowSize * Math.sin(angle + Math.PI/6));
+            ctx.closePath();
+            ctx.fill();
+        }
+        
+        function getSystemBadge(app) {
+            const badges = {
+                'auth': '[CORE]',
+                'sessions': '[LOGIN]',
+                'chatapp': '[APP]',
+                'admin': '[MGMT]',
+                'socialaccount': '[OAUTH]',
+                'account': '[EMAIL]',
+                'contenttypes': '[CT]',
+                'sites': '[SITE]',
+                'django': '[FW]'
+            };
+            return badges[app] || '[SYS]';
+        }
+        
+        // Enhanced interaction handlers
+        let isDragging = false;
+        let dragNode = null;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+        
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = (e.clientX - rect.left - canvas.width / 2 - offsetX) / scale;
+            const mouseY = (e.clientY - rect.top - canvas.height / 2 - offsetY) / scale;
+            
+            const clickedNode = nodes.find(node => {
+                const dx = mouseX - node.x;
+                const dy = mouseY - node.y;
+                return Math.sqrt(dx * dx + dy * dy) < node.radius;
+            });
+            
+            if (clickedNode) {
+                dragNode = clickedNode;
+                showEnhancedNodeInfo(clickedNode);
+            } else {
+                isDragging = true;
+                document.getElementById('infoPanel').classList.remove('show');
+            }
+            
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            if (dragNode) {
+                const rect = canvas.getBoundingClientRect();
+                dragNode.x = (e.clientX - rect.left - canvas.width / 2 - offsetX) / scale;
+                dragNode.y = (e.clientY - rect.top - canvas.height / 2 - offsetY) / scale;
+                dragNode.vx = 0;
+                dragNode.vy = 0;
+            } else if (isDragging) {
+                offsetX += e.clientX - lastMouseX;
+                offsetY += e.clientY - lastMouseY;
+            }
+            
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+        });
+        
+        canvas.addEventListener('mouseup', () => {
+            isDragging = false;
+            dragNode = null;
+        });
+        
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+            scale *= zoomFactor;
+            scale = Math.max(0.2, Math.min(4, scale));
+        });
+        
+        function showEnhancedNodeInfo(node) {
+            const panel = document.getElementById('infoPanel');
+            const title = document.getElementById('nodeTitle');
+            const details = document.getElementById('nodeDetails');
+            
+            title.innerHTML = `${getSystemIcon(node.app)} ${node.id.replace(/_/g, ' ').toUpperCase()}`;
+            
+            const systemRole = getDetailedSystemRole(node.app, node.id);
+            const relatedModels = getRelatedModels(node);
+            
+            details.innerHTML = `
+                <div style="margin-bottom: 20px; padding: 15px; background: linear-gradient(135deg, ${node.color}20, ${node.color}10); border-radius: 10px;">
+                    <h4 style="color: ${node.color}; margin-bottom: 10px;">🏷️ System Context</h4>
+                    <p><strong>System:</strong> ${node.app.toUpperCase()}</p>
+                    <p><strong>Connections:</strong> ${node.connections}</p>
+                    <p><strong>Importance:</strong> ${getImportanceLevel(node.importance)}</p>
+                    <p style="margin-top: 8px; font-style: italic;">${systemRole}</p>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <h4>🔗 Connected To:</h4>
+                    <div style="max-height: 120px; overflow-y: auto; margin-top: 5px;">
+                        ${relatedModels.slice(0, 8).map(rel => 
+                            `<div style="padding: 6px; background: #f8f9fa; margin: 3px 0; border-radius: 6px; font-size: 13px; border-left: 3px solid ${systemColors[rel.app] || '#666'};">
+                                <strong>${rel.model}</strong> <span style="color: #666;">(${rel.type})</span>
+                            </div>`
+                        ).join('')}
+                        ${relatedModels.length > 8 ? `<small>... and ${relatedModels.length - 8} more</small>` : ''}
+                    </div>
+                </div>
+                
+                <div>
+                    <h4>📊 Model Fields:</h4>
+                    <div style="max-height: 100px; overflow-y: auto; margin-top: 5px;">
+                        ${node.model.fields.slice(0, 6).map(field => 
+                            `<div style="padding: 4px; background: #f8f9fa; margin: 2px 0; border-radius: 4px; font-size: 12px;">
+                                <strong>${field.name}</strong>: ${field.type}
+                            </div>`
+                        ).join('')}
+                        ${node.model.fields.length > 6 ? `<small>... and ${node.model.fields.length - 6} more fields</small>` : ''}
+                    </div>
+                </div>
+            `;
+            
+            panel.classList.add('show');
+        }
+        
+        function getSystemIcon(app) {
+            const icons = {
+                'auth': '🔑',
+                'sessions': '🎫',
+                'chatapp': '💬',
+                'admin': '⚙️',
+                'socialaccount': '🔗',
+                'account': '📧',
+                'contenttypes': '📋',
+                'sites': '🌐',
+                'django': '🔧'
+            };
+            return icons[app] || '📦';
+        }
+        
+        function getDetailedSystemRole(app, modelName) {
+            if (app === 'auth') {
+                if (modelName.includes('user')) return '👤 CENTRAL USER HUB - Every user action flows through this model';
+                if (modelName.includes('group')) return '👥 User Groups - Organize users for permissions';
+                if (modelName.includes('permission')) return '🛡️ Access Control - Define what users can do';
+                return '🔐 Core Authentication System';
+            }
+            if (app === 'sessions') return '🎫 Session Management - Keeps users logged in across requests';
+            if (app === 'chatapp') {
+                if (modelName.includes('room')) return '💬 Chat Rooms - Where conversations happen';
+                if (modelName.includes('message')) return '📨 Messages - The actual chat content';
+                if (modelName.includes('profile')) return '👤 User Profiles - Extended user information';
+                return '🗨️ Your Main Chat Application';
+            }
+            if (app === 'admin') return '⚙️ Admin Interface - Provides web-based management for all your data';
+            if (app === 'socialaccount') return '🔗 Social Authentication - Enables login with Google, Facebook, etc.';
+            if (app === 'account') return '📧 Account Management - Email verification, password reset';
+            if (app === 'contenttypes') return '📋 Content Types - Registry of all models for Django admin';
+            return '🔧 Django Framework Component';
+        }
+        
+        function getImportanceLevel(importance) {
+            if (importance >= 5) return '🔥🔥🔥 CRITICAL';
+            if (importance >= 4) return '🔥🔥 HIGH';
+            if (importance >= 3) return '🔥 MEDIUM';
+            if (importance >= 2) return '⚡ LOW';
+            return '📄 MINIMAL';
+        }
+        
+        function getRelatedModels(node) {
+            const related = [];
+            edges.forEach(edge => {
+                if (edge.from === node) {
+                    related.push({ model: edge.to.id, type: 'connects to', app: edge.to.app });
+                } else if (edge.to === node) {
+                    related.push({ model: edge.from.id, type: 'connected from', app: edge.from.app });
+                }
+            });
+            return related;
+        }
+        
+        // Physics simulation for natural layout
+        function updatePhysics() {
+            if (!physicsEnabled) return;
+            
+            const damping = 0.88;
+            const repulsion = 800;
+            const attraction = 0.008;
+            
+            // Node-to-node repulsion
+            for (let i = 0; i < nodes.length; i++) {
+                for (let j = i + 1; j < nodes.length; j++) {
+                    const nodeA = nodes[i];
+                    const nodeB = nodes[j];
+                    
+                    const dx = nodeB.x - nodeA.x;
+                    const dy = nodeB.y - nodeA.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance > 0 && distance < 300) {
+                        const repulsionForce = repulsion / (distance * distance);
+                        const repulsionX = (dx / distance) * repulsionForce;
+                        const repulsionY = (dy / distance) * repulsionForce;
+                        
+                        nodeA.vx -= repulsionX;
+                        nodeA.vy -= repulsionY;
+                        nodeB.vx += repulsionX;
+                        nodeB.vy += repulsionY;
+                    }
+                }
+            }
+            
+            // Edge-based attraction
+            edges.forEach(edge => {
+                const dx = edge.to.x - edge.from.x;
+                const dy = edge.to.y - edge.from.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance > 0) {
+                    const attractionForce = attraction * distance * edge.strength;
+                    const attractionX = (dx / distance) * attractionForce;
+                    const attractionY = (dy / distance) * attractionForce;
+                    
+                    edge.from.vx += attractionX;
+                    edge.from.vy += attractionY;
+                    edge.to.vx -= attractionX;
+                    edge.to.vy -= attractionY;
+                }
+            });
+            
+            // Apply velocity and damping
+            nodes.forEach(node => {
+                node.vx *= damping;
+                node.vy *= damping;
+                node.x += node.vx;
+                node.y += node.vy;
+                
+                // Boundary constraints
+                const maxDistance = 800;
+                const distance = Math.sqrt(node.x * node.x + node.y * node.y);
+                if (distance > maxDistance) {
+                    node.x = (node.x / distance) * maxDistance;
+                    node.y = (node.y / distance) * maxDistance;
+                }
+            });
+        }
+        
+        // Control functions
+        function resetView() {
+            scale = 1;
+            offsetX = 0;
+            offsetY = 0;
+            centerGraph();
+        }
+        
+        function focusOnAuth() {
+            const authNode = nodes.find(n => n.id.includes('auth_user'));
+            if (authNode) {
+                offsetX = -authNode.x * scale;
+                offsetY = -authNode.y * scale;
+                scale = 1.8;
+            }
+        }
+        
+        function togglePhysics() {
+            physicsEnabled = !physicsEnabled;
+        }
+        
+        function exportGraph() {
+            const link = document.createElement('a');
+            link.download = 'django-system-connections.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+        
+        function closeInfo() {
+            document.getElementById('infoPanel').classList.remove('show');
+        }
+        
+        function centerGraph() {
+            if (nodes.length === 0) return;
+            
+            const bounds = nodes.reduce((acc, node) => ({
+                minX: Math.min(acc.minX, node.x),
+                maxX: Math.max(acc.maxX, node.x),
+                minY: Math.min(acc.minY, node.y),
+                maxY: Math.max(acc.maxY, node.y)
+            }), { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity });
+            
+            const centerX = (bounds.minX + bounds.maxX) / 2;
+            const centerY = (bounds.minY + bounds.maxY) / 2;
+            
+            offsetX = -centerX * scale;
+            offsetY = -centerY * scale;
+        }
+        
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight - 180;
+        }
+        
+        // Animation loop
+        function animate() {
+            updatePhysics();
+            draw();
+            requestAnimationFrame(animate);
+        }
+        
+        // Initialize everything
+        window.addEventListener('resize', resizeCanvas);
+        initializeGraph();
+        animate();
+    </script>
+</body>
+</html>

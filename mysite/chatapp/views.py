@@ -95,39 +95,102 @@ def leave_room(request, slug):
         return JsonResponse({'success': False})
 
 @login_required
-@require_POST
 def send_message(request, slug):
     """Send a message to a chat room"""
     if request.method == 'POST':
         room = get_object_or_404(ChatRoom, slug=slug)
         message = request.POST.get('message', '').strip()
+        uploaded_file = request.FILES.get('file')
         
-        if message:
+        # Check if user is blocked
+        if UserBlock.is_user_blocked(request.user):
+            return JsonResponse({'success': False, 'error': 'You are currently blocked from sending messages.'})
+        
+        # Must have either message or file
+        if not message and not uploaded_file:
+            return JsonResponse({'success': False, 'error': 'Please enter a message or select a file'})
+        
+        try:
+            # Determine message type
+            message_type = 'text'
+            file_name = ''
+            file_size = 0
+            
+            if uploaded_file:
+                file_name = uploaded_file.name
+                file_size = uploaded_file.size
+                
+                # Check if it's an image
+                if uploaded_file.content_type and uploaded_file.content_type.startswith('image/'):
+                    message_type = 'image'
+                else:
+                    message_type = 'file'
+            
+            # Create the message
             chat_message = ChatMessage.objects.create(
                 user=request.user,
                 room=room,
-                message=message
+                message_content=message,
+                message_type=message_type,
+                file=uploaded_file,
+                file_name=file_name,
+                file_size=file_size
             )
-            return JsonResponse({'status': 'success', 'message_id': chat_message.id})
+            
+            return JsonResponse({
+                'success': True, 
+                'message_id': chat_message.id,
+                'message': 'Message sent successfully'
+            })
+            
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': f'Error sending message: {str(e)}'})
     
-    return JsonResponse({'status': 'error'})
+    return JsonResponse({'success': False, 'error': 'Invalid request method'})
 
 @login_required
 def get_messages(request, slug):
     """Get messages for a chat room"""
-    room = get_object_or_404(ChatRoom, slug=slug)
-    messages = ChatMessage.objects.filter(room=room).order_by('-date')[:50]
+    try:
+        room = get_object_or_404(ChatRoom, slug=slug)
+        last_message_id = request.GET.get('last_message_id', 0)
+        
+        # Get messages newer than the last received message
+        messages = ChatMessage.objects.filter(
+            room=room, 
+            id__gt=last_message_id
+        ).order_by('date')
+        
+        messages_data = []
+        for msg in messages:
+            message_data = {
+                'id': msg.id,
+                'username': msg.user.username,
+                'message': msg.message_content,  # Fixed: use message_content field
+                'message_content': msg.message_content,
+                'message_type': msg.message_type,
+                'time': msg.date.strftime('%H:%M'),
+                'date': msg.date.isoformat(),
+                'reactions': {}  # Add reactions support later if needed
+            }
+            
+            # Add file information if it's a file/image message
+            if msg.file:
+                message_data.update({
+                    'file_url': msg.file.url,
+                    'file_name': msg.file_name,
+                    'file_size': msg.get_file_size_display() if hasattr(msg, 'get_file_size_display') else getattr(msg, 'file_size', 0)
+                })
+            
+            messages_data.append(message_data)
+        
+        return JsonResponse({'messages': messages_data})
     
-    messages_data = []
-    for msg in messages:
-        messages_data.append({
-            'id': msg.id,
-            'user': msg.user.username,
-            'message': msg.message,
-            'date': msg.date.isoformat(),
-        })
-    
-    return JsonResponse({'messages': messages_data})
+    except Exception as e:
+        return JsonResponse({
+            'error': f'Error fetching messages: {str(e)}',
+            'messages': []
+        }, status=500)
 
 @login_required
 def toggle_reaction(request, slug, message_id):
